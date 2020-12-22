@@ -1,0 +1,97 @@
+.light {
+    background-color: #FEFAF2;
+
+    .supertitle {
+        font-family: 'Playfair Display', serif;
+        font-size: 32pt;
+        line-height: 40pt;
+        font-weight: 550;
+        margin: 0;
+        color: #9F9079;
+    }
+
+    .title {
+        font-family: 'Playfair Display', serif;
+        font-size: 16pt;
+        font-weight: 550;
+        margin: 0;
+        color: #9F9079;
+    }
+
+    .subtitle {
+        font-family: 'Roboto', sans-serif;
+        font-size: 14pt;
+        font-weight: 450;
+        margin: 0;
+        color: #212121;
+    }
+
+    .text {
+        font-family: 'Roboto', sans-serif;
+        font-size: 11pt;
+        font-weight: 400;
+        margin: 0;
+        color: #212121;
+    }
+
+    .text-code {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 11pt;
+        font-weight: 400;
+        margin: 0;
+        color: #212121;
+    }
+
+    .highlighted {
+        background-color: #CFBB9B;
+    }
+}
+
+.dark {
+    background-color: #282722;
+
+    .supertitle {
+        font-family: 'Playfair Display', serif;
+        font-size: 32pt;
+        line-height: 40pt;
+        font-weight: 550;
+        margin: 0;
+        color: #CFBB9B;
+    }
+   
+    .title {
+        font-size: 16pt;
+        font-weight: 550;
+        font-family: 'Playfair Display', serif;
+        margin: 0;
+        color: #CFBB9B;
+    }
+   
+    .subtitle {
+        font-family: 'Roboto', sans-serif;
+        font-size: 14pt;
+        font-weight: 450;
+        margin: 0;
+        color: #FCFCFC;
+    }
+
+    .text {
+        font-family: 'Roboto', sans-serif;
+        font-size: 11pt;
+        font-weight: 400;
+        margin: 0;
+        color: #FCFCFC;
+    }
+
+    .text-code {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 11pt;
+        font-weight: 400;
+        margin: 0;
+        color: #FCFCFC;
+    }
+
+    .highlighted {
+        background-color: #9F9079;
+    }
+}

@@ -1,0 +1,37 @@
+[
+    {
+        "company": "Cockroach Labs",
+        "position": "Software Engineering Intern",
+        "start": "September 2020",
+        "end": "December 2020",
+        "summary": "Contributed to [CockroachDB](https://github.com/cockroachdb/cockroach), a cloud-native, distributed SQL database written in Go."
+    },
+    {
+        "company": "Shopify",
+        "position": "Backend Engineering Intern",
+        "start": "January 2020",
+        "end": "April 2020",
+        "summary": "Worked on an ad serving platform "
+    },
+    {
+        "company": "LCBO",
+        "position": "Software Engineering Intern",
+        "start": "May 2019",
+        "end": "August 2019",
+        "summary": ""
+    },
+    {
+        "company": "Bonfire Interactive",
+        "position": "Software Engineering Intern",
+        "start": "September 2018",
+        "end": "December 2018",
+        "summary": "Extended APIs, microservices, and workflows for security and automation in several projects."
+    },
+    {
+        "company": "Paralucent Inc",
+        "position": "Web Applications Engineering Intern",
+        "start": "January 2018",
+        "end": "April 2018",
+        "summary": "Worked on infrastructure and automating CI/CD using Docker and Azure services."
+    }
+]
