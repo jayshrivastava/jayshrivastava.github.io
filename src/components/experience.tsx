@@ -14,7 +14,7 @@ function Experience(props : ExperienceProps) {
         <div >
             <p className={subTitleClass}> {props.company} </p>
             <p className={codeClass} > {props.position} </p>
-            <p className={codeClass} > {"[" + props.start + ", " + props.end + "]"} </p>
+            <p className={codeClass} > {`[${props.start}, ${props.end}]`} </p>
             <div className={textClass} >{props.summary}</div>
             <p/>
         </div>

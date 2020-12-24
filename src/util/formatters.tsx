@@ -1,4 +1,9 @@
-export const collapseLinksInText = (target :string, className: string) => {
+// collapseLinksInText inlines mardown-style hyperlinks in text.
+// Eg. "check out this [link](url)" => "check out this <a class=${className} href=${link}><u>${text}</u></a>`"
+// To safely use the text containing tsx as tsx, use the Markup component: import { Markup } from 'interweave'.
+//
+// TODO: Change this function to return TSX instead of a string.
+export const collapseLinksInText = (target :string, className: string) : string => {
     const linkString = (text: string, link: string) => {
         return (
             `<a class=${className} href=${link}><u>${text}</u></a>`

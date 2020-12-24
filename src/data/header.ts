@@ -1,3 +1,6 @@
+// TODO: find a good way to store this text (csv? arrays?).
+// The <br> tags do not allow for much customization (scss styling etc).
+
 export const bigIdea =
 `I like to build large scale systems and write performant code.`
 
