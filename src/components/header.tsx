@@ -1,4 +1,4 @@
-import {subTitleClass, textClass, superTitleClass} from './../util/fonts'
+import {subTitleClass, textClass, titleClass} from './../util/fonts'
 import {Container, Row, Col} from 'react-bootstrap'
 import './header.scss'
 import {bigIdea, smallerIdea} from'./../data/header'
@@ -30,7 +30,7 @@ function Header(props: HeaderProps) {
             </Row>
             <Row className="pad-above-row">
                 <Col md={{ span: 8, offset: 2 }}>
-                    <p className={superTitleClass}> {bigIdea}  </p>
+                    <p className={titleClass}> {bigIdea}  </p>
                 </Col>
             </Row>
             <Row className="pad-above-row">
