@@ -1,5 +1,7 @@
 
 import {textClass, codeClass, subTitleClass} from './../util/fonts'
+import { Markup } from 'interweave';
+import {collapseLinksInText} from './../util/formatters'
 
 interface ExperienceProps {
     company: string
@@ -15,7 +17,9 @@ function Experience(props : ExperienceProps) {
             <p className={subTitleClass}> {props.company} </p>
             <p className={codeClass} > {props.position} </p>
             <p className={codeClass} > {`[${props.start}, ${props.end}]`} </p>
-            <div className={textClass} >{props.summary}</div>
+            <div className={textClass}>
+                <Markup content={collapseLinksInText(props.summary, textClass)}/>
+            </div>
             <p/>
         </div>
     )
