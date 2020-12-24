@@ -2,21 +2,18 @@
 // The <br> tags do not allow for much customization (scss styling etc).
 
 export const bigIdea =
-`I like to build large scale systems and write performant code.`
+`Hello.`
 
 export const smallerIdea = `
-I am a 5x intern with experience in the fields of backend engineering,
-distributed systems, databases, cloud services, and data engineering.
-I recently finished an internship working on (CockroachDB)[https://github.com/cockroachdb/cockroach], a distributed,
-cloud-native, SQL database written in Go.
+I am a 5x SWE intern and current Waterloo Computer Engineering student from Markham, Ontario, CA. I enjoy low level
+programming and systems engineering. In the past, I have worked in the areas of fullstack development, distributed systems, databases,
+cloud infrastructure, and data engineering.
 <br>
 <br>
-I'm also a 3rd Year Computer
-Engineering student at the University of Waterloo.
+I recently finished an internship working on [CockroachDB](https://github.com/cockroachdb/cockroach), a distributed,
+cloud-native, SQL database written in Go. Previously, I worked on real-time ad auctions on Shopify's
+[App Store Ads]
+(https://shopify.dev/concepts/app-store/advertising) team.
 <br>
 <br>
-Shopify (App Store Ads)[https://shopify.dev/concepts/app-store/advertising]
-<br>
-<br>
-In my free time, I like to play the piano, cook, play basketball,
-and run.`
+I'm also into gaming, running, basketball, playing the piano, and cooking.`
