@@ -15,7 +15,7 @@ function Links() {
                         links.map((link, idx) => {
                             return (
                                 <Row key={idx}>
-                                    <Col xs={{ span: 2 }} sm={{ span: 2 }} md={{ span: 1 }} lg={{ span: 1 }}>
+                                    <Col xs={{ span: 2 }} sm={{ span: 2 }} md={{ span: 2 }} lg={{ span: 1 }}>
                                         <a
                                             onMouseEnter={()=>{setSelectedDisplayLink(link.displayLink)}}
                                             onMouseLeave={()=>{setSelectedDisplayLink("")}}
@@ -23,7 +23,7 @@ function Links() {
                                             href={link.link}> {link.text}
                                         </a>
                                     </Col>
-                                    <Col xs={{ span: 10 }} sm={{ span: 10 }} md={{ span: 11 }} lg={{ span: 11 }}>
+                                    <Col xs={{ span: 10 }} sm={{ span: 10 }} md={{ span: 10 }} lg={{ span: 11 }}>
                                         <p
                                             className={[
                                                 "display-link", textClass,
