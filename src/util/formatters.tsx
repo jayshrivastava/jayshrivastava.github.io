@@ -23,7 +23,13 @@ export const collapseLinksInText = (target :string, className: string) : string 
         return target
     }
 
-    target = target.replaceAll(closedBracketWithLinkInside, "")
+    // Avoid using e.replaceAll() because it is not supported on old browsers nor on certain mobile browsers.
+    let prev = target
+    target = target.replace(closedBracketWithLinkInside, "")
+    while (target !== prev) {
+        prev = target
+        target = target.replace(closedBracketWithLinkInside, "")
+    }
 
     for (let i = 0; i < placeholders.length; i++) {
         target = target.replace(
