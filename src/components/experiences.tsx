@@ -9,7 +9,7 @@ function Experiences() {
         <Container>
             <Row className="pad-above-row">
                 <Col md={{ span: 8, offset: 2 }}>
-                    <p className={titleClass}> Experiences </p>
+                    <p className={titleClass}> Experiences. </p>
                     <p/>
                     {
                         experiences.map((experience, idx) => {

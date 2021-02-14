@@ -4,14 +4,14 @@
         "position": "Software Engineering Intern",
         "start": "September 2020",
         "end": "December 2020",
-        "summary": "Improving the performance, observability, and testing of online, distributed schema changes in [CockroachDB](https://github.com/cockroachdb/cockroach)."
+        "summary": "Building new SQL features in [CockroachDB](https://github.com/cockroachdb/cockroach) with Go and improving cluster performance & observability."
     },
     {
         "company": "Shopify",
         "position": "Backend Engineering Intern",
         "start": "January 2020",
         "end": "April 2020",
-        "summary": "Working on the backend of a real-time ad auction / ad serving system made mostly with Ruby on Rails."
+        "summary": "Working on the backend of a real-time ad serving/auctions system made mostly with Ruby on Rails."
     },
     {
         "company": "LCBO",

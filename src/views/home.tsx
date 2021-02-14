@@ -3,6 +3,7 @@ import {useState} from "react"
 import Experiences from '../components/experiences'
 import Links from '../components/links'
 import Header from '../components/header'
+import Footer from '../components/footer'
 import {Container, Row} from 'react-bootstrap'
 
 
@@ -42,6 +43,9 @@ function Home() {
                 </Row>
                 <Row>
                     <Experiences/>
+                </Row>
+                <Row>
+                    <Footer/>
                 </Row>
             </Container>
         </div>

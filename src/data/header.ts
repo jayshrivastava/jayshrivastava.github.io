@@ -5,9 +5,8 @@ export const bigIdea =
 `Hello.`
 
 export const smallerIdea = `
-I am a 5x SWE intern and current Waterloo Computer Engineering student from Markham, Ontario, CA. I enjoy low level
-programming and systems engineering. In the past, I have worked in the areas of fullstack development, distributed systems, databases,
-cloud infrastructure, and data engineering.
+I am a Waterloo Computer Engineering student and 5x software engineering intern looking for a final internship for my senior year. In the past, I have worked in the areas of fullstack development, distributed systems, databases,
+cloud infrastructure, and data engineering. I particularly enjoy systems engineering and programming for performance.
 <br>
 <br>
 I recently finished an internship working on [CockroachDB](https://github.com/cockroachdb/cockroach), a distributed,
