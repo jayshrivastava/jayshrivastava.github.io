@@ -6,28 +6,40 @@ import Header from '../components/header'
 import Footer from '../components/footer'
 import {Container, Row} from 'react-bootstrap'
 
-
 const lightValue = "light"
 const darkValue = "dark"
-const sessionThemeKey = "jayshrivastava.theme"
+const localStorageThemeKey = "jayshrivastava.theme"
+
+const setLocalStorage = (key: string, value: string) => {
+    if (navigator.cookieEnabled) {
+        localStorage.setItem(key, value)
+    }
+}
+
+const getLocalStorage = (key: string) => {
+    if (navigator.cookieEnabled) {
+        return localStorage.getItem(key)
+    }
+    return null
+}
 
 function Home() {
     const [theme, setTheme] = useState(lightValue)
 
     // Sync the theme with session storage.
-    const sessionTheme = sessionStorage.getItem(sessionThemeKey)
+    const sessionTheme = getLocalStorage(localStorageThemeKey)
     if (sessionTheme === null) {
-        sessionStorage.setItem(sessionThemeKey, theme)
+        setLocalStorage(localStorageThemeKey, theme)
     } else if (sessionTheme !== theme) {
         setTheme(sessionTheme)
     }
 
     const toggleTheme = () => {
         if (theme === lightValue) {
-            sessionStorage.setItem(sessionThemeKey, darkValue)
+            setLocalStorage(localStorageThemeKey, darkValue)
             setTheme(darkValue)
         } else {
-            sessionStorage.setItem(sessionThemeKey, lightValue)
+            setLocalStorage(localStorageThemeKey, lightValue)
             setTheme(lightValue)
         }
     }
