@@ -5,14 +5,14 @@ export const bigIdea =
 `Hello.`
 
 export const smallerIdea = `
-I am a Waterloo Computer Engineering student and 5x software engineering intern looking for a final internship for my senior year. In the past, I have worked in the areas of fullstack development, distributed systems, databases,
-cloud infrastructure, and data engineering. I particularly enjoy systems engineering and programming for performance.
+I'm a Waterloo Computer Engineering student graduating in April 2022. In the past, I have worked in the areas of backend engineering, distributed systems, databases,
+cloud infrastructure, compilers, and data engineering. I particularly enjoy systems engineering and programming for performance.
 <br>
 <br>
-I recently finished an internship working on [CockroachDB](https://github.com/cockroachdb/cockroach), a distributed,
-cloud-native, SQL database written in Go. Previously, I worked on real-time ad auctions on Shopify's
+Currently, I'm working on compilers at Facebook AI.
+Previously, I've worked on distributed databases at [CockroachDB](https://github.com/cockroachdb/cockroach) and real-time ad auctions on Shopify's
 [App Store Ads]
 (https://shopify.dev/concepts/app-store/advertising) team.
 <br>
 <br>
-I'm also into gaming, running, basketball, playing the piano, and cooking.`
+I'm also into pc gaming, fitness, basketball, and cooking.`

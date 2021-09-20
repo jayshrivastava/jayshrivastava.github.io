@@ -1,5 +1,12 @@
 [
     {
+        "company": "Facebook",
+        "position": "Software Engineering Intern",
+        "start": "September 2021",
+        "end": "December 2021",
+        "summary": "Empowering data science across the company by working on compiler performance and feature engineering."
+    },
+    {
         "company": "Cockroach Labs",
         "position": "Software Engineering Intern",
         "start": "September 2020",
