@@ -1,4 +1,4 @@
-import links from './../data/links.json'
+import {links} from './../data/links'
 import {textClass, highlightedClass} from './../util/fonts'
 import {Container, Row, Col} from 'react-bootstrap'
 import {useState} from 'react'

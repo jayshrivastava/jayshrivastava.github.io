@@ -24,7 +24,7 @@ const getLocalStorage = (key: string) => {
 }
 
 function Home() {
-    const [theme, setTheme] = useState(lightValue)
+    const [theme, setTheme] = useState(darkValue)
 
     // Sync the theme with session storage.
     const sessionTheme = getLocalStorage(localStorageThemeKey)

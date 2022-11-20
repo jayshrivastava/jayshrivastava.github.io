@@ -2,17 +2,16 @@
 // The <br> tags do not allow for much customization (scss styling etc).
 
 export const bigIdea =
-`Hello.`
+`Hello. 👋🏽`
 
 export const smallerIdea = `
-I'm a Waterloo Computer Engineering student graduating in April 2022. In the past, I have worked in the areas of backend engineering, distributed systems, databases,
-cloud infrastructure, compilers, and data engineering. I particularly enjoy systems engineering and programming for performance.
+I'm a recent grad from Waterloo Computer Engineering living in New York! 🗽 I'm currently working on 
+strongly consistent databases at [CockroachDB](https://github.com/cockroachdb/cockroach). 
 <br>
 <br>
-Currently, I'm working on compilers at Facebook AI.
-Previously, I've worked on distributed databases at [CockroachDB](https://github.com/cockroachdb/cockroach) and real-time ad auctions on Shopify's
-[App Store Ads]
-(https://shopify.dev/concepts/app-store/advertising) team.
+In the past, I have worked on distributed systems, databases, compilers, and web apps. 
+I particularly enjoy systems engineering and programming for performance.
 <br>
 <br>
-I'm also into pc gaming, fitness, basketball, and cooking.`
+I'm also into pc gaming, fitness, and basketball 🏀
+`

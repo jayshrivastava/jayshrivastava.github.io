@@ -1,17 +1,24 @@
 [
     {
+        "company": "Cockroach Labs",
+        "position": "Software Engineer",
+        "start": "July 2022",
+        "end": "Present",
+        "summary": "Working on [changefeeds](https://www.cockroachlabs.com/docs/stable/change-data-capture-overview.html) that move terabytes of data between clusters with high throughput and low resource usage."
+    },
+    {
         "company": "Facebook",
         "position": "Software Engineering Intern",
         "start": "September 2021",
         "end": "December 2021",
-        "summary": "Empowering data science across the company by working on compiler performance and feature engineering."
+        "summary": "Empowering data science across the company by working on [compilers for feature engineering](https://www.facebook.com/watch/?v=1073947483052122)."
     },
     {
         "company": "Cockroach Labs",
         "position": "Software Engineering Intern",
         "start": "September 2020",
         "end": "December 2020",
-        "summary": "Building new SQL features in [CockroachDB](https://github.com/cockroachdb/cockroach) with Go and improving cluster performance & observability."
+        "summary": "Building new SQL features with Go in [CockroachDB](https://github.com/cockroachdb/cockroach) and improving cluster performance & observability."
     },
     {
         "company": "Shopify",
