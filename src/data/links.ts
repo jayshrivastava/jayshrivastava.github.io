@@ -23,8 +23,8 @@ export const links = [
     // },
     {
         "text": "email", 
-        "link": "mailto:jayant.shrivastava@uwaterloo.ca",
-        "displayLink": "jayant.shrivastava@uwaterloo.ca"
+        "link": "mailto:jshrivastava03@gmail.com",
+        "displayLink": "jshrivastava03@gmail.com"
     },
     {
         "text": "resume", 
