@@ -1,7 +1,7 @@
 
 import {titleClass} from '../util/fonts'
-import experiences from '../data/experiences.json'
-import Experience from './experience'
+// import experiences from '../data/experiences.json'
+// import Experience from './experience'
 import {Container, Row, Col} from 'react-bootstrap'
 
 function Experiences() {
@@ -12,11 +12,11 @@ function Experiences() {
                     <p className={titleClass}> Experiences. </p>
                     <p/>
                     {
-                        experiences.map((experience, idx) => {
-                            return <Experience key={idx}
-                                {...experience}
-                            />
-                        })
+                        // experiences.map((experience, idx) => {
+                        //     return <Experience key={idx}
+                        //         {...experience}
+                        //     />
+                        // })
                     }
                 </Col>
             </Row>

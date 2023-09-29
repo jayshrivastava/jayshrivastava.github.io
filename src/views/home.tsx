@@ -1,9 +1,9 @@
 import './home.scss'
 import {useState} from "react"
-import Experiences from '../components/experiences'
+// import Experiences from '../components/experiences'
 import Links from '../components/links'
 import Header from '../components/header'
-import Footer from '../components/footer'
+// import Footer from '../components/footer'
 import {Container, Row} from 'react-bootstrap'
 
 const lightValue = "light"
@@ -45,7 +45,7 @@ function Home() {
     }
 
     return (
-        <div className = {theme} >
+        <div className = {theme} style={{height: '100vh'}}>
             <Container>
                 <Row>
                    <Header changeTheme={toggleTheme}/>
@@ -53,12 +53,12 @@ function Home() {
                 <Row>
                     <Links/>
                 </Row>
-                <Row>
+                {/* <Row>
                     <Experiences/>
                 </Row>
                 <Row>
                     <Footer/>
-                </Row>
+                </Row> */}
             </Container>
         </div>
     )
