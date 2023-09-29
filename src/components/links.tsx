@@ -20,6 +20,7 @@ function Links() {
                                             onMouseEnter={()=>{setSelectedDisplayLink(link.displayLink)}}
                                             onMouseLeave={()=>{setSelectedDisplayLink("")}}
                                             className={textClass}
+                                            target="_blank"
                                             href={link.text === "resume" ? process.env.PUBLIC_URL + link.link : link.link}> {link.text}
                                         </a>
                                     </Col>

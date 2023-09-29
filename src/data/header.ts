@@ -5,13 +5,12 @@ export const bigIdea =
 `Hello. 👋🏽`
 
 export const smallerIdea = `
-I'm a recent grad from Waterloo Computer Engineering living in New York! 🗽 I'm currently working on 
-strongly consistent databases at [CockroachDB](https://github.com/cockroachdb/cockroach). 
+I'm a recent Waterloo ECE grad living in New York! 🗽 I'm currently working on 
+on [CockroachDB](https://github.com/cockroachdb/cockroach), a distributed SQL database written in Go. 
 <br>
 <br>
-In the past, I have worked on distributed systems, databases, compilers, and web apps. 
-I particularly enjoy systems engineering and programming for performance.
+I enjoy designing and scaling distributed systems and programming with low-level languages Go and Rust.
 <br>
 <br>
-I'm also into pc gaming, fitness, and basketball 🏀
+Some of my interests basketball 🏀, chess ♖, poker 🃏, and fitness 🏋️.
 `
