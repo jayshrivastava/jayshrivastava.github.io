@@ -28,7 +28,7 @@ export const links = [
     },
     {
         "text": "resume", 
-        "link": "/resume.pdf",
+        "link": "https://drive.google.com/file/d/1lLejE8Yc7GuXbIu5x7sa4C9TwikvV0Xs/view",
         "displayLink": "resume.pdf"
     }
 ]

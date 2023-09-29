@@ -22,7 +22,7 @@ function Header(props: HeaderProps) {
 
                         <Col xs={{ span: 5 }} sm={{ span: 6}} md={{ span: 6}}>
                             <p id="change-theme" className={textClass} onClick={props.changeTheme}>
-                                <u> Change Theme </u>
+                                <u> Theme </u>
                             </p>
                         </Col>
                     </Row>
