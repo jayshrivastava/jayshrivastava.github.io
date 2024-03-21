@@ -1,10 +1,17 @@
 [
     {
+        "company": "Datadog",
+        "position": "Software Engineer",
+        "start": "April 2024",
+        "end": "Present",
+        "summary": "Working on the metrics query platform."
+    },
+    {
         "company": "Cockroach Labs",
         "position": "Software Engineer",
         "start": "July 2022",
-        "end": "Present",
-        "summary": "Working on [changefeeds](https://www.cockroachlabs.com/docs/stable/change-data-capture-overview.html) that move terabytes of data between clusters with high throughput and low resource usage."
+        "end": "April 2024",
+        "summary": "Worked on [logical replication](https://www.cockroachlabs.com/docs/stable/change-data-capture-overview) and low-level streaming. Scaled workloads that move terabytes of data with high throughput and low resource usage."
     },
     {
         "company": "Facebook",
