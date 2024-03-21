@@ -1,15 +1,12 @@
 import Home from './views/home'
 import {
   BrowserRouter as Router,
-  Switch,
+  Routes,
   Route,
 } from "react-router-dom"
 
 function App() {
   return (
-    <Router>
-    <div>
-
     <Router>
       <div>
         {/* <nav>
@@ -23,15 +20,12 @@ function App() {
 
         {/* A <Switch> looks through its children <Route>s and
             renders the first one that matches the current URL. */}
-        <Switch>
-          <Route path="/">
-            <Home />
+        <Routes>
+          <Route path="/" element={<Home/>}>
           </Route>
-        </Switch>
+        </Routes>
       </div>
     </Router>
-    </div>
-  </Router>
   );
 }
 

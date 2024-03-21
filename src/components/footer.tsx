@@ -6,7 +6,7 @@ function Footer() {
         <Container>
             <Row className="justify-content-md-center">
                 <Col className="d-flex justify-content-center">
-                     <p className={textClass}> Made with 🥡 in Markham, Ontario. </p>
+                     <p className={textClass}> Made with 🍗🥡🌯🍣🍔 in Markham, Ontario, Canada. </p>
                 </Col>
             </Row>
         </Container>
