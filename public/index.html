@@ -98,6 +98,12 @@
         font-size: 15px;
       }
 
+      .tagline-icons {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
       .tagline-icon {
         width: 34px;
         height: 34px;
@@ -264,11 +270,46 @@
         }
 
         .tagline-row {
+          display: grid;
+          grid-template-columns: max-content auto;
+          align-items: center;
+          column-gap: 8px;
+          row-gap: 2px;
           margin-bottom: 22px;
         }
 
         .tagline {
+          display: contents;
           font-size: 14px;
+        }
+
+        .tagline-primary {
+          grid-column: 1 / -1;
+        }
+
+        .tagline-divider {
+          display: none;
+        }
+
+        .tagline-secondary {
+          grid-column: 1;
+          grid-row: 2;
+        }
+
+        .tagline-icons {
+          grid-column: 2;
+          grid-row: 2;
+          justify-self: start;
+        }
+      }
+
+      @media (max-width: 360px) {
+        h1 {
+          font-size: 22px;
+        }
+
+        .tagline {
+          font-size: 13px;
         }
       }
     </style>
@@ -288,13 +329,19 @@
           </button>
         </div>
         <div class="tagline-row">
-          <p class="tagline">systems engineer living in new york · uwaterloo grad</p>
-          <img class="tagline-icon" src="assets/pixel/nyc.png" alt="" />
-          <img
-            class="tagline-icon tagline-icon--maple"
-            src="assets/pixel/maple.png"
-            alt=""
-          />
+          <p class="tagline">
+            <span class="tagline-primary">systems engineer living in new york</span><span
+              class="tagline-divider"
+            > · </span><span class="tagline-secondary">uwaterloo grad</span>
+          </p>
+          <div class="tagline-icons" aria-hidden="true">
+            <img class="tagline-icon" src="assets/pixel/nyc.png" alt="" />
+            <img
+              class="tagline-icon tagline-icon--maple"
+              src="assets/pixel/maple.png"
+              alt=""
+            />
+          </div>
         </div>
       </header>
 
