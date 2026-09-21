@@ -8,174 +8,469 @@
     />
     <meta
       name="description"
-      content="Personal website of Jayant Shrivastava, a software engineer specializing in systems programming and AI"
+      content="Jayant Shrivastava — software engineer working on query engines, distributed systems, and open source."
     />
-    <title>Jayant Shrivastava</title>
+    <title>jayant shrivastava</title>
+    <link rel="icon" type="image/png" href="assets/pixel/shawarma.png" />
+    <script>
+      ;(() => {
+        let savedTheme = null
+        try {
+          savedTheme = localStorage.getItem('theme')
+        } catch {}
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.dataset.theme = savedTheme || (prefersDark ? 'dark' : 'light')
+      })()
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&amp;display=swap"
       rel="stylesheet"
     />
     <style>
-      /* Simple, clean styles */
+      :root {
+        color-scheme: light;
+        --background: #fff;
+        --foreground: #111;
+        --link: #0000ee;
+        font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        background: var(--background);
+        color: var(--foreground);
+        font-synthesis: none;
+      }
+
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --background: #111;
+        --foreground: #eeeeea;
+        --link: #8ab4f8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
-        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
         margin: 0;
-        padding: 0;
-        background-color: white;
-        color: black;
-        line-height: 1.6;
+        min-width: 320px;
+        line-height: 1.55;
+        background: var(--background);
+        color: var(--foreground);
+        transition: background-color 120ms linear, color 120ms linear;
       }
 
       .container {
-        width: 90%;
-        max-width: 700px;
+        width: min(90%, 620px);
+        min-height: 100vh;
         margin: 0 auto;
-        padding: 0 20px 0px 20px;
-        height: 100vh;
+        padding: 72px 0;
         display: flex;
         flex-direction: column;
         justify-content: center;
       }
 
-      /* For desktop - content takes up 60% width */
-      @media (min-width: 768px) {
-        .container {
-          width: 60%;
-          max-width: 600px;
-        }
-      }
-
       h1 {
-        font-size: 26px;
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.2;
         font-weight: 700;
-        margin-bottom: 32px;
       }
 
-      p {
-        margin-bottom: 18px;
-        font-size: 16px;
-      }
-
-      a {
-        color: #0000ee;
-        text-decoration: underline;
-      }
-
-      footer {
-        margin-top: 20px;
-        padding-top: 10px;
-      }
-
-      .links {
+      .name-row {
         display: flex;
-        flex-wrap: wrap;
+        align-items: center;
         gap: 10px;
       }
 
-      /* More padding on larger screens */
-      @media (min-width: 768px) {
+      .tagline-row {
+        min-height: 34px;
+        margin-top: 8px;
+        margin-bottom: 22px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .tagline {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .tagline-icon {
+        width: 34px;
+        height: 34px;
+        flex: 0 0 auto;
+        object-fit: contain;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        animation: torch-flicker 1.2s steps(2, end) infinite;
+      }
+
+      .tagline-icon--maple {
+        width: 28px;
+        height: 28px;
+        animation: maple-wiggle 1.6s steps(2, end) infinite;
+      }
+
+      .theme-toggle {
+        width: 34px;
+        height: 34px;
+        padding: 2px;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+      }
+
+      .theme-toggle:focus-visible {
+        outline: 2px solid var(--link);
+        outline-offset: 2px;
+      }
+
+      .theme-toggle img {
+        width: 30px;
+        height: 30px;
+        display: block;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        transition: transform 180ms steps(3, end);
+      }
+
+      :root[data-theme="dark"] .theme-toggle img {
+        transform: rotate(180deg);
+      }
+
+      section + section {
+        margin-top: 32px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.4;
+        font-weight: 600;
+      }
+
+      .section-heading {
+        min-height: 32px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .pixel-icon {
+        width: 30px;
+        height: 30px;
+        object-fit: contain;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        transform-origin: center bottom;
+      }
+
+      .pixel-icon--jobs {
+        animation: terminal-blink 1.4s steps(2, end) infinite;
+      }
+
+      .pixel-icon--socials {
+        animation: chat-bop 1.2s steps(2, end) infinite;
+      }
+
+      .pixel-icon--oss {
+        animation: node-pulse 1.8s steps(2, end) infinite;
+      }
+
+      .pixel-icon--talks {
+        animation: mic-bop 1s steps(2, end) infinite;
+      }
+
+      @keyframes terminal-blink {
+        50% {
+          filter: brightness(1.18);
+        }
+      }
+
+      @keyframes chat-bop {
+        50% {
+          transform: translateY(-2px);
+        }
+      }
+
+      @keyframes torch-flicker {
+        50% {
+          filter: brightness(1.18);
+          transform: translateY(-1px);
+        }
+      }
+
+      @keyframes maple-wiggle {
+        50% {
+          transform: rotate(5deg);
+        }
+      }
+
+      @keyframes node-pulse {
+        50% {
+          transform: scale(0.92);
+        }
+      }
+
+      @keyframes mic-bop {
+        50% {
+          transform: translateY(-2px);
+        }
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 21px;
+      }
+
+      li {
+        padding-left: 3px;
+        font-size: 16px;
+      }
+
+      li + li {
+        margin-top: 7px;
+      }
+
+      a {
+        color: var(--link);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .pixel-icon,
+        .tagline-icon {
+          animation: none;
+        }
+      }
+
+      @media (max-width: 480px) {
         .container {
-          padding: 0 0 30px 0;
+          padding: 48px 0;
+          justify-content: flex-start;
         }
 
         h1 {
-          font-size: 30px;
+          font-size: 25px;
         }
 
-        p {
-          font-size: 18px;
+        .name-row {
+          gap: 8px;
+        }
+
+        .tagline-row {
+          margin-bottom: 22px;
+        }
+
+        .tagline {
+          font-size: 14px;
         }
       }
     </style>
-    <script
-      id="react-dotenv"
-      src="http://jayshrivastava.github.io/env.js"
-    ></script>
   </head>
   <body>
     <div class="container">
       <header>
-        <h1>jayant shrivastava</h1>
+        <div class="name-row">
+          <h1>jayant shrivastava</h1>
+          <button
+            id="theme-toggle"
+            class="theme-toggle"
+            type="button"
+            aria-label="switch color theme"
+          >
+            <img src="assets/pixel/theme.png" alt="" />
+          </button>
+        </div>
+        <div class="tagline-row">
+          <p class="tagline">systems engineer living in new york · uwaterloo grad</p>
+          <img class="tagline-icon" src="assets/pixel/nyc.png" alt="" />
+          <img
+            class="tagline-icon tagline-icon--maple"
+            src="assets/pixel/maple.png"
+            alt=""
+          />
+        </div>
       </header>
 
       <main>
-        <p>
-          I'm a SWE generalist living in New York 🗽. I'm interested in systems
-          programming and AI.
-        </p>
-        <p>
-          In the past, I worked on AI infra at
-          <a
-            href="https://www.facebook.com/watch/?v=1073947483052122"
-            target="_blank"
-            rel="noopener noreferrer"
-            >meta</a
-          >
-          and streaming/replication at
-          <a
-            href="https://github.com/cockroachdb/cockroach/pulls?q=is%3Apr+author%3Ajayshrivastava+is%3Aclosed"
-            target="_blank"
-            rel="noopener noreferrer"
-            >cockroachdb</a
-          >. Before that, I studied Computer Engineering at the <a href="https://www.reddit.com/r/uwaterloo/" target="_blank" rel="noopener noreferrer">University of Waterloo</a>. Now, I work on query execution at
-          <a
-            href="https://www.datadoghq.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            >datadog</a
-          >. In my free time, I like to build projects like
-          <a
-            href="https://github.com/jayshrivastava/claude-squad"
-            target="_blank"
-            rel="noopener noreferrer"
-            >claude-squad</a
-          >
-          using Go and Rust.
-        </p>
-        <p>
-          The best way to reach me is on my
-          <a
-            href="https://twitter.com/_jayshrivastava"
-            target="_blank"
-            rel="noopener noreferrer"
-            >twitter</a
-          >. Always down to grab a coffee!
-        </p>
-        <p>
-          Some of my interests include tennis 🎾, chess ♖, fitness 💪, and
-          investing in memecoins 🪙.
-        </p>
+        <section aria-labelledby="links-heading">
+          <div class="section-heading">
+            <h2 id="links-heading"># links</h2>
+            <img class="pixel-icon pixel-icon--socials" src="assets/pixel/socials.png" alt="" />
+          </div>
+          <ul>
+            <li>
+              jayshrivastava on
+              <a href="https://github.com/jayshrivastava" target="_blank" rel="noopener noreferrer"
+                >github</a
+              >
+            </li>
+            <li>
+              _jayshrivastava on
+              <a href="https://twitter.com/_jayshrivastava" target="_blank" rel="noopener noreferrer"
+                >twitter</a
+              >
+            </li>
+            <li>
+              jshrivastava99 on
+              <a
+                href="https://linkedin.com/in/jshrivastava99"
+                target="_blank"
+                rel="noopener noreferrer"
+                >linkedin</a
+              >
+            </li>
+            <li>jshrivastava03 [at] gmail [dot] com</li>
+            <li>
+              check out my
+              <a
+                href="https://drive.google.com/file/d/1lLejE8Yc7GuXbIu5x7sa4C9TwikvV0Xs/view"
+                target="_blank"
+                rel="noopener noreferrer"
+                >resume</a
+              >
+            </li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="jobs-heading">
+          <div class="section-heading">
+            <h2 id="jobs-heading"># jobs</h2>
+            <img class="pixel-icon pixel-icon--jobs" src="assets/pixel/jobs.png" alt="" />
+          </div>
+          <ul>
+            <li>
+              query engines at
+              <a href="https://www.datadoghq.com/" target="_blank" rel="noopener noreferrer">datadog</a>
+            </li>
+            <li>
+              database internals at
+              <a
+                href="https://github.com/cockroachdb/cockroach/pulls?q=is%3Apr+author%3Ajayshrivastava+is%3Aclosed"
+                target="_blank"
+                rel="noopener noreferrer"
+                >cockroach labs</a
+              >
+            </li>
+            <li>
+              ml infra at
+              <a
+                href="https://www.facebook.com/watch/?v=1073947483052122"
+                target="_blank"
+                rel="noopener noreferrer"
+                >meta</a
+              >
+            </li>
+            <li>
+              ads at
+              <a href="https://www.shopify.com/" target="_blank" rel="noopener noreferrer">shopify</a>
+            </li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="oss-heading">
+          <div class="section-heading">
+            <h2 id="oss-heading"># oss</h2>
+            <img class="pixel-icon pixel-icon--oss" src="assets/pixel/oss.png" alt="" />
+          </div>
+          <ul>
+            <li>
+              <a
+                href="https://github.com/smtg-ai/claude-squad"
+                target="_blank"
+                rel="noopener noreferrer"
+                >smtg-ai/claude-squad</a
+              >
+              — co-created a terminal app for managing ai agents · 8.5k github stars
+            </li>
+            <li>
+              <a
+                href="https://github.com/datafusion-contrib/datafusion-distributed"
+                target="_blank"
+                rel="noopener noreferrer"
+                >datafusion-contrib/datafusion-distributed</a
+              >
+              — implemented distributed join optimizations and telemetry
+            </li>
+            <li>
+              <a
+                href="https://github.com/gabotechs/libcudf-rs/pull/92"
+                target="_blank"
+                rel="noopener noreferrer"
+                >gabotechs/libcudf-rs</a
+              >
+              — rust bindings for
+              <a href="https://github.com/rapidsai/cudf" target="_blank" rel="noopener noreferrer"
+                >cuDF</a
+              >; accelerating olap queries on gpus
+            </li>
+            <li>
+              <a
+                href="https://github.com/cockroachdb/cockroach/pulls?q=is%3Apr+author%3Ajayshrivastava+is%3Aclosed"
+                target="_blank"
+                rel="noopener noreferrer"
+                >cockroachdb/cockroach</a
+              >
+              — improved logical replication and streaming in a distributed sql database
+            </li>
+            <li>
+              <a
+                href="https://github.com/apache/datafusion/pulls?q=is%3Apr+author%3Ajayshrivastava"
+                target="_blank"
+                rel="noopener noreferrer"
+                >apache/datafusion</a
+              >
+              — advanced dynamic filtering, serde, and range partitioning
+            </li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="writing-heading">
+          <div class="section-heading">
+            <h2 id="writing-heading"># talks / blogs</h2>
+            <img class="pixel-icon pixel-icon--talks" src="assets/pixel/talks.png" alt="" />
+          </div>
+          <ul>
+            <li>
+              <a
+                href="https://www.youtube.com/watch?v=TH2ctlEQg7E"
+                target="_blank"
+                rel="noopener noreferrer"
+                >distributed datafusion</a
+              >
+              — datafusion meetup, may 2026
+            </li>
+          </ul>
+        </section>
       </main>
-      <footer>
-        <div class="links">
-          <a
-            href="https://drive.google.com/file/d/1lLejE8Yc7GuXbIu5x7sa4C9TwikvV0Xs/view"
-            target="_blank"
-            rel="noopener noreferrer"
-            >resume</a
-          >
-          <a
-            href="https://twitter.com/_jayshrivastava"
-            target="_blank"
-            rel="noopener noreferrer"
-            >twitter</a
-          >
-          <a
-            href="https://linkedin.com/in/jshrivastava99"
-            target="_blank"
-            rel="noopener noreferrer"
-            >linkedin</a
-          >
-          <a href="mailto:jshrivastava03@gmail.com">email</a>
-          <a
-            href="https://github.com/jayshrivastava"
-            target="_blank"
-            rel="noopener noreferrer"
-            >github</a
-          >
-        </div>
-      </footer>
+
     </div>
+    <script>
+      const themeToggle = document.getElementById('theme-toggle')
+
+      const syncThemeToggle = () => {
+        const isDark = document.documentElement.dataset.theme === 'dark'
+        themeToggle.setAttribute('aria-pressed', String(isDark))
+        themeToggle.setAttribute('aria-label', `switch to ${isDark ? 'light' : 'dark'} mode`)
+        themeToggle.title = `switch to ${isDark ? 'light' : 'dark'} mode`
+      }
+
+      themeToggle.addEventListener('click', () => {
+        const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'
+        document.documentElement.dataset.theme = nextTheme
+        try {
+          localStorage.setItem('theme', nextTheme)
+        } catch {}
+        syncThemeToggle()
+      })
+
+      syncThemeToggle()
+    </script>
   </body>
 </html>
