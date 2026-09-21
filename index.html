@@ -96,12 +96,20 @@
       .tagline {
         margin: 0;
         font-size: 15px;
+        display: flex;
+        align-items: center;
+      }
+
+      .tagline-secondary-row {
+        display: flex;
+        align-items: center;
       }
 
       .tagline-icons {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 0;
+        margin-left: 8px;
       }
 
       .tagline-icon {
@@ -255,7 +263,7 @@
         }
       }
 
-      @media (max-width: 480px) {
+      @media (max-width: 640px) {
         .container {
           padding: 48px 0;
           justify-content: flex-start;
@@ -270,37 +278,25 @@
         }
 
         .tagline-row {
-          display: grid;
-          grid-template-columns: max-content auto;
-          align-items: center;
-          column-gap: 0;
-          row-gap: 2px;
+          display: block;
           margin-bottom: 22px;
         }
 
         .tagline {
-          display: contents;
+          display: block;
           font-size: 14px;
         }
 
         .tagline-primary {
-          grid-column: 1 / -1;
+          display: block;
         }
 
         .tagline-divider {
           display: none;
         }
 
-        .tagline-secondary {
-          grid-column: 1;
-          grid-row: 2;
-        }
-
         .tagline-icons {
-          grid-column: 2;
-          grid-row: 2;
-          justify-self: start;
-          margin-left: -6px;
+          margin-left: 2px;
         }
       }
 
@@ -333,16 +329,15 @@
           <p class="tagline">
             <span class="tagline-primary">systems engineer living in new york</span><span
               class="tagline-divider"
-            > · </span><span class="tagline-secondary">uwaterloo grad</span>
+            >&nbsp;—&nbsp;</span><span class="tagline-secondary-row"><span class="tagline-secondary">uwaterloo grad</span><span class="tagline-icons" aria-hidden="true">
+              <img class="tagline-icon" src="assets/pixel/nyc.png" alt="" />
+              <img
+                class="tagline-icon tagline-icon--maple"
+                src="assets/pixel/maple.png"
+                alt=""
+              />
+            </span></span>
           </p>
-          <div class="tagline-icons" aria-hidden="true">
-            <img class="tagline-icon" src="assets/pixel/nyc.png" alt="" />
-            <img
-              class="tagline-icon tagline-icon--maple"
-              src="assets/pixel/maple.png"
-              alt=""
-            />
-          </div>
         </div>
       </header>
 
