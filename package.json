@@ -29,6 +29,7 @@
   "scripts": {
     "start": "serve public --listen 3000 --no-clipboard",
     "build": "node scripts/build.mjs",
+    "watch": "node --watch --watch-preserve-output --watch-path=content/blog --watch-path=scripts/build.mjs scripts/build.mjs",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "lint": "tslint 'src/**/*.ts?(x)' --fix",

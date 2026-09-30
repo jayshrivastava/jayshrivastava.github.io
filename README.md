@@ -24,4 +24,16 @@ See the section about [running tests](https://facebook.github.io/create-react-ap
 
 ### `npm run build`
 
-Copies the static site into the `build` folder for deployment.
+Renders Markdown posts and copies the static site into the `build` folder for deployment.
+
+### `npm run watch`
+
+Rebuilds the static site whenever a Markdown post or the Markdown renderer changes. Run it
+alongside `npm start`, then refresh the browser after saving an edit.
+
+### Writing
+
+Edit [`content/blog/cuda-streams.md`](content/blog/cuda-streams.md) to update the CUDA streams
+post. Its frontmatter controls the title, date, subtitle, and page description. Keep the
+`{{single_stream_animation}}`, `{{tokio_poll_animation}}`, and `{{multi_stream_animation}}`
+placeholders where the three animated diagrams should appear.
