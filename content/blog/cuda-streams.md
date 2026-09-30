@@ -1,7 +1,6 @@
 ---
-title: one cuda stream wasn't enough
+title: improving GPU utilization with Tokio and cuDF
 date: 2026-09-18
-subtitle: bridging Tokio and CUDA runtimes to keep GPUs busy
 description: How an async Rust and CUDA stream integration improved GPU utilization for aggregate-heavy OLAP queries in libcudf-rs.
 ---
 
@@ -26,9 +25,7 @@ a CPU-only instance on OLAP workloads.
 My goal was to finalize our execution model, keeping in mind two goals:
 
 (a) keep resources (i.e., the GPU) saturated when compute or memory capacity is available; and
-
-(b) schedule work efficiently across three runtimes, reconciling DataFusion's [Volcano-based](https://dl.acm.org/doi/10.1145/93605.98720)
-execution model, the Tokio runtime, and the CUDA/cuDF runtime.
+(b) schedule work efficiently across three runtimes, reconciling DataFusion's [Volcano-based](https://dl.acm.org/doi/10.1145/93605.98720) execution model, the Tokio runtime, and the CUDA/cuDF runtime.
 
 ## problem: the GPU wasn't saturated
 
@@ -47,9 +44,8 @@ or ensure that a necessary stream sync happens before reading data on the GPU.
 However, as the project matured,
 we started looking for the next performance gain, namely in the form of concurrency and parallelism. We wanted to:
 
-(1) efficiently schedule cuDF/GPU operations from the host runtime; and
-
-(2) concurrently run operations on the GPU when it has available resources.
+(a) efficiently schedule cuDF/GPU operations from the host runtime; and
+(b) concurrently run operations on the GPU when it has available resources.
 
 Doing so requires migrating to a multi-task, multi-CUDA-stream model, which I'll dive into below.
 

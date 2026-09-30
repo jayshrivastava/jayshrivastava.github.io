@@ -165,6 +165,16 @@ const renderMarkdown = (markdown, {wrapSections = true} = {}) => {
       continue
     }
 
+    if (/^\([a-z]\)\s+/.test(trimmed)) {
+      const items = []
+      while (index < lines.length && /^\([a-z]\)\s+/.test(lines[index].trim())) {
+        items.push(lines[index].trim().replace(/^\([a-z]\)\s+/, ''))
+        index += 1
+      }
+      output.push(`<ol class="goals-list">${items.map((item) => `<li>${renderInline(item)}</li>`).join('')}</ol>`)
+      continue
+    }
+
     if (trimmed.startsWith('- ')) {
       const items = []
       while (index < lines.length && lines[index].trim().startsWith('- ')) {
@@ -199,6 +209,7 @@ const renderMarkdown = (markdown, {wrapSections = true} = {}) => {
         next.startsWith('> ') ||
         next.startsWith('- ') ||
         /^\d+\.\s+/.test(next) ||
+        /^\([a-z]\)\s+/.test(next) ||
         next.startsWith('|') ||
         next.startsWith('![')
       ) break
@@ -263,10 +274,12 @@ const renderBlog = async () => {
     year: 'numeric',
     timeZone: 'UTC',
   }).format(new Date(`${metadata.date}T00:00:00Z`))
+  const subtitle = metadata.subtitle
+    ? `\n  <p class="dek">${escapeHtml(metadata.subtitle)}</p>`
+    : ''
   const header = `<header>
   <p class="eyebrow">${date.toLowerCase()}</p>
-  <h1>${escapeHtml(metadata.title)}</h1>
-  <p class="dek">${escapeHtml(metadata.subtitle)}</p>
+  <h1>${escapeHtml(metadata.title)}</h1>${subtitle}
 </header>`
 
   let page = await readFile(blogPage, 'utf8')

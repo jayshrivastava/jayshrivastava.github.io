@@ -7,7 +7,7 @@
       name="description"
       content="How an async Rust and CUDA stream integration improved GPU utilization for aggregate-heavy OLAP queries in libcudf-rs."
     />
-    <title>one cuda stream wasn't enough — jayant shrivastava</title>
+    <title>improving GPU utilization with Tokio and cuDF — jayant shrivastava</title>
     <link rel="icon" type="image/png" href="../../assets/pixel/shawarma.png" />
     <script>
       ;(() => {
@@ -194,6 +194,8 @@
         font: inherit;
         font-size: 12px;
         cursor: pointer;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
 
       .motion-icon--pause {
@@ -232,6 +234,10 @@
       }
 
       article > section {
+        margin-top: 70px;
+      }
+
+      section h2:not(:first-child) {
         margin-top: 70px;
       }
 
@@ -1154,6 +1160,26 @@
         text-align: center;
       }
 
+      .goals-list {
+        margin: 20px 0 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: goal;
+      }
+
+      .goals-list li {
+        position: relative;
+        margin-bottom: 16px;
+        padding-left: 2.25em;
+        counter-increment: goal;
+      }
+
+      .goals-list li::before {
+        position: absolute;
+        left: 0;
+        content: "(" counter(goal, lower-alpha) ")";
+      }
+
       .results-intro {
         margin-bottom: 28px;
       }
@@ -1317,6 +1343,21 @@
           margin-bottom: 48px;
         }
 
+        .animation-toggle {
+          width: 40px;
+          height: 40px;
+        }
+
+        .diagram__toggle {
+          top: 9px;
+          right: 9px;
+        }
+
+        .diagram__progress {
+          top: 28px;
+          right: 58px;
+        }
+
         h1 {
           font-size: 34px;
         }
@@ -1352,6 +1393,10 @@
           margin-top: 58px;
         }
 
+        section h2:not(:first-child) {
+          margin-top: 58px;
+        }
+
         .diagram .svg-label {
           font-size: 15px;
         }
@@ -1368,23 +1413,6 @@
       @media (prefers-reduced-motion: reduce) {
         html {
           scroll-behavior: auto;
-        }
-
-        .diagram * {
-          animation: none !important;
-        }
-
-        .serial-packet,
-        .multi-packet {
-          opacity: 1;
-        }
-
-        .animation-toggle {
-          display: none;
-        }
-
-        .diagram__progress {
-          display: none;
         }
       }
     </style>
@@ -1403,8 +1431,7 @@
           <!-- GENERATED_HEADER_START -->
 <header>
   <p class="eyebrow">september 18, 2026</p>
-  <h1>one cuda stream wasn't enough</h1>
-  <p class="dek">bridging Tokio and CUDA runtimes to keep GPUs busy</p>
+  <h1>improving GPU utilization with Tokio and cuDF</h1>
 </header>
 <!-- GENERATED_HEADER_END -->
 
@@ -1412,8 +1439,7 @@
 <p>There has been growing interest in GPU query engines over the last two years, notably with the <a href="https://arxiv.org/abs/2508.05029" target="_blank" rel="noopener noreferrer">Theseus paper</a>, NVIDIA's <a href="https://docs.nvidia.com/heavyai/overview" target="_blank" rel="noopener noreferrer">acquisition of HEAVY.AI</a>, and NVIDIA's blog post on <a href="https://developer.nvidia.com/blog/designing-gpu-accelerated-query-engines-with-nvidia-gqe/" target="_blank" rel="noopener noreferrer">GQE</a>. Naturally, I imagine there's some interest in finding use cases for cheap, outdated GPUs that are too small for frontier AI.</p>
 <p>Recently, I spent a week working on <a href="https://github.com/gabotechs/libcudf-rs" target="_blank" rel="noopener noreferrer">libcudf-rs</a>, an experimental OLAP engine built on <a href="https://datafusion.apache.org/" target="_blank" rel="noopener noreferrer">Apache DataFusion</a> and Rust bindings for <a href="https://github.com/rapidsai/cudf" target="_blank" rel="noopener noreferrer">cuDF</a> (huge shoutout to my colleague and original author <a href="https://github.com/gabotechs" target="_blank" rel="noopener noreferrer">@gabotechs</a> who recently gave a <a href="https://www.youtube.com/watch?v=P5v3y1sUMc8" target="_blank" rel="noopener noreferrer">talk</a> about it). A major goal of the project is to see whether a GPU instance can offer better performance per dollar than a CPU-only instance on OLAP workloads.</p>
 <p>My goal was to finalize our execution model, keeping in mind two goals:</p>
-<p>(a) keep resources (i.e., the GPU) saturated when compute or memory capacity is available; and</p>
-<p>(b) schedule work efficiently across three runtimes, reconciling DataFusion's <a href="https://dl.acm.org/doi/10.1145/93605.98720" target="_blank" rel="noopener noreferrer">Volcano-based</a> execution model, the Tokio runtime, and the CUDA/cuDF runtime.</p>
+<ol class="goals-list"><li>keep resources (i.e., the GPU) saturated when compute or memory capacity is available; and</li><li>schedule work efficiently across three runtimes, reconciling DataFusion's <a href="https://dl.acm.org/doi/10.1145/93605.98720" target="_blank" rel="noopener noreferrer">Volcano-based</a> execution model, the Tokio runtime, and the CUDA/cuDF runtime.</li></ol>
 <!-- GENERATED_INTRO_END -->
 
           <section id="the-current-model">
@@ -1505,8 +1531,7 @@
             <!-- GENERATED_CURRENT_MODEL_CONTINUATION_START -->
 <p>The reason we had this simple model was that it was easier to reason about correctness and lifetimes. The safeguards that Rust has around shared ownership and lifetimes don't really apply to data on the GPU. For example, the borrow checker and type system cannot detect potential cross-stream dependencies or ensure that a necessary stream sync happens before reading data on the GPU.</p>
 <p>However, as the project matured, we started looking for the next performance gain, namely in the form of concurrency and parallelism. We wanted to:</p>
-<p>(1) efficiently schedule cuDF/GPU operations from the host runtime; and</p>
-<p>(2) concurrently run operations on the GPU when it has available resources.</p>
+<ol class="goals-list"><li>efficiently schedule cuDF/GPU operations from the host runtime; and</li><li>concurrently run operations on the GPU when it has available resources.</li></ol>
 <p>Doing so requires migrating to a multi-task, multi-CUDA-stream model, which I'll dive into below.</p>
 <!-- GENERATED_CURRENT_MODEL_CONTINUATION_END -->
           </section>
@@ -1744,10 +1769,10 @@ s1,p1: ProjectionExec &lt;- FilterExec &lt;- DataSourceExec</code></pre>
                     <rect class="node node--aggregate" x="444" y="142" width="121" height="44" rx="3" />
                     <rect class="node node--aggregate" x="444" y="228" width="121" height="44" rx="3" />
                     <rect class="node node--aggregate" x="444" y="314" width="121" height="44" rx="3" />
-                    <text class="svg-node-label partial-aggregate-label" x="504" y="82">partial aggregate</text>
-                    <text class="svg-node-label partial-aggregate-label" x="504" y="168">partial aggregate</text>
-                    <text class="svg-node-label partial-aggregate-label" x="504" y="254">partial aggregate</text>
-                    <text class="svg-node-label partial-aggregate-label" x="504" y="340">partial aggregate</text>
+                    <text class="svg-node-label partial-aggregate-label" x="504" y="82">partial agg</text>
+                    <text class="svg-node-label partial-aggregate-label" x="504" y="168">partial agg</text>
+                    <text class="svg-node-label partial-aggregate-label" x="504" y="254">partial agg</text>
+                    <text class="svg-node-label partial-aggregate-label" x="504" y="340">partial agg</text>
                   </g>
 
                   <path class="wire" d="M565 78 C640 78 628 177 693 194" />
@@ -1756,7 +1781,7 @@ s1,p1: ProjectionExec &lt;- FilterExec &lt;- DataSourceExec</code></pre>
                   <path class="wire" d="M565 336 C640 336 628 247 693 239" />
 
                   <rect class="final-pulse" x="693" y="170" width="180" height="100" rx="3" />
-                  <text class="svg-node-label" x="783" y="213">final aggregate</text>
+                  <text class="svg-node-label" x="783" y="213">final agg</text>
                   <text class="svg-small" x="783" y="234">synchronize + merge</text>
 
                   <g class="packet multi-packet multi-packet--1">
@@ -1865,16 +1890,34 @@ s1,p1: ProjectionExec &lt;- FilterExec &lt;- DataSourceExec</code></pre>
         syncThemeToggle()
       })
 
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+      const setDiagramPaused = (diagram, animationToggle, isPaused) => {
+        diagram.classList.toggle('is-paused', isPaused)
+        animationToggle.setAttribute('aria-pressed', String(isPaused))
+        animationToggle.setAttribute(
+          'aria-label',
+          `${isPaused ? 'play' : 'pause'} this execution animation`,
+        )
+        animationToggle.title = `${isPaused ? 'play' : 'pause'} animation`
+
+        // Explicitly resume descendant animations as well as removing the CSS
+        // pause state. This avoids animations remaining suspended in iOS Safari.
+        if (!isPaused) {
+          ;[diagram, ...diagram.querySelectorAll('*')].forEach((element) => {
+            if (typeof element.getAnimations === 'function') {
+              element.getAnimations().forEach((animation) => animation.play())
+            }
+          })
+        }
+      }
+
       document.querySelectorAll('[data-animation-toggle]').forEach((animationToggle) => {
+        const diagram = animationToggle.closest('.diagram')
+        setDiagramPaused(diagram, animationToggle, prefersReducedMotion.matches)
+
         animationToggle.addEventListener('click', () => {
-          const diagram = animationToggle.closest('.diagram')
-          const isPaused = diagram.classList.toggle('is-paused')
-          animationToggle.setAttribute('aria-pressed', String(isPaused))
-          animationToggle.setAttribute(
-            'aria-label',
-            `${isPaused ? 'play' : 'pause'} this execution animation`,
-          )
-          animationToggle.title = `${isPaused ? 'play' : 'pause'} animation`
+          setDiagramPaused(diagram, animationToggle, !diagram.classList.contains('is-paused'))
         })
       })
 
