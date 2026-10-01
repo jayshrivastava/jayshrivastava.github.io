@@ -1557,11 +1557,19 @@
 before    ▶       10s     9s    628ms   36µs     335     ~27ms</code></pre>
 <p>This meant that for 9 seconds, the executor could not schedule another future on that worker thread until the call returned.</p>
 <p>In <a href="https://github.com/gabotechs/libcudf-rs/pull/89" target="_blank" rel="noopener noreferrer">PR #89</a>, I implemented a simple fix. Because cuDF calls can block their calling thread, I moved the GPU aggregate kernel work to Tokio's blocking pool. <code>spawn_blocking</code> returns a future, allowing <code>poll_next</code> to return <code>Pending</code> while the work continues on another thread.</p>
-<pre><code class="language-rust"><span class="syntax-keyword">let</span> task = tokio::task::<span class="syntax-function">spawn_blocking</span>(<span class="syntax-keyword">move</span> || <span class="syntax-function">aggregate_on_gpu</span>(batch));
-
-<span class="syntax-keyword">match</span> <span class="syntax-type">Pin</span>::<span class="syntax-function">new</span>(task).<span class="syntax-function">poll</span>(cx) {
-    <span class="syntax-type">Poll</span>::<span class="syntax-variant">Pending</span> =&gt; <span class="syntax-type">Poll</span>::<span class="syntax-variant">Pending</span>,
-    <span class="syntax-type">Poll</span>::<span class="syntax-variant">Ready</span>(result) =&gt; <span class="syntax-function">finish</span>(result),
+<pre><code class="language-rust"><span class="syntax-keyword">match</span> &amp;<span class="syntax-keyword">mut</span> <span class="syntax-keyword">self</span>.state {
+    <span class="syntax-type">State</span>::ReadingInput =&gt; {
+        <span class="syntax-comment">// Move the blocking GPU call to another thread.</span>
+        <span class="syntax-keyword">self</span>.state = <span class="syntax-type">State</span>::<span class="syntax-variant">Aggregating</span>(
+            tokio::task::<span class="syntax-function">spawn_blocking</span>(<span class="syntax-keyword">move</span> || <span class="syntax-function">aggregate_on_gpu</span>(batch)),
+        );
+        continue;
+    }
+    <span class="syntax-comment">// Later calls poll the GPU task's JoinHandle.</span>
+    <span class="syntax-type">State</span>::<span class="syntax-variant">Aggregating</span>(task) =&gt; <span class="syntax-keyword">match</span> <span class="syntax-type">Pin</span>::<span class="syntax-function">new</span>(task).<span class="syntax-function">poll</span>(cx) {
+        <span class="syntax-type">Poll</span>::<span class="syntax-variant">Pending</span> =&gt; <span class="syntax-type">Poll</span>::<span class="syntax-variant">Pending</span>,
+        <span class="syntax-type">Poll</span>::<span class="syntax-variant">Ready</span>(result) =&gt; <span class="syntax-function">finish</span>(result),
+    },
 }</code></pre>
 <!-- GENERATED_RUNTIME_END -->
 
@@ -1853,7 +1861,7 @@ s1,p1: ProjectionExec &lt;- FilterExec &lt;- DataSourceExec</code></pre>
 
           <!-- GENERATED_OUTRO_START -->
 <section id="results"><h2>results</h2>
-<p>TPC-H SF100 on a <code>g7.4xlarge</code> with an NVIDIA RTX PRO 4500 Blackwell Server Edition (32 GB, 165 W). These are mean end-to-end query times from the PR.</p>
+<p>TPC-H SF100 on a <code>g7.4xlarge</code> with an NVIDIA RTX PRO 4500 Blackwell Server Edition (32 GB, 165 W). These are mean end-to-end query times from the PR. They compare the original plan with the complete multi-partition, multi-stream rewrite.</p>
 <ul class="metrics-list"><li><strong>2.53×</strong> — Q15 speedup at 8 streams</li><li><strong>2.07×</strong> — Q1 speedup at 8 streams</li><li><strong>1.77×</strong> — Q20 speedup at 2 streams</li></ul>
 <div class="table-wrap"><table><thead><tr><th>query</th><th>1 stream</th><th>2 streams</th><th>4 streams</th><th>8 streams</th><th>best speedup</th></tr></thead><tbody><tr><td>Q1</td><td>4908 ms</td><td>3526 ms</td><td>2508 ms</td><td><strong>2374 ms</strong></td><td><strong>2.07×</strong></td></tr><tr><td>Q15</td><td>3182 ms</td><td>1787 ms</td><td>1295 ms</td><td><strong>1256 ms</strong></td><td><strong>2.53×</strong></td></tr><tr><td>Q17</td><td>7308 ms</td><td><strong>6300 ms</strong></td><td>6557 ms</td><td>6898 ms</td><td><strong>1.16×</strong></td></tr><tr><td>Q18</td><td>32915 ms</td><td>27895 ms</td><td>24891 ms</td><td><strong>23531 ms</strong></td><td><strong>1.40×</strong></td></tr><tr><td>Q20</td><td>6002 ms</td><td><strong>3383 ms</strong></td><td>3402 ms</td><td>3606 ms</td><td><strong>1.77×</strong></td></tr></tbody></table></div>
 <h3>the profile tells the same story</h3>

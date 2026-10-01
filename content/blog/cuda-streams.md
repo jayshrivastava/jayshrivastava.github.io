@@ -97,11 +97,19 @@ allowing `poll_next` to return `Pending` while the work
 continues on another thread.
 
 ```rust
-let task = tokio::task::spawn_blocking(move || aggregate_on_gpu(batch));
-
-match Pin::new(task).poll(cx) {
-    Poll::Pending => Poll::Pending,
-    Poll::Ready(result) => finish(result),
+match &mut self.state {
+    State::ReadingInput => {
+        // Move the blocking GPU call to another thread.
+        self.state = State::Aggregating(
+            tokio::task::spawn_blocking(move || aggregate_on_gpu(batch)),
+        );
+        continue;
+    }
+    // Later calls poll the GPU task's JoinHandle.
+    State::Aggregating(task) => match Pin::new(task).poll(cx) {
+        Poll::Pending => Poll::Pending,
+        Poll::Ready(result) => finish(result),
+    },
 }
 ```
 {{tokio_poll_animation}}
@@ -183,7 +191,9 @@ results. The final aggregate would have had to wait for its entire input anyway 
 ## results
 
 TPC-H SF100 on a `g7.4xlarge` with an NVIDIA RTX PRO 4500 Blackwell Server Edition
-(32 GB, 165 W). These are mean end-to-end query times from the PR.
+(32 GB, 165 W). These are mean end-to-end query times from the PR. They compare the
+original plan with the complete multi-partition, multi-stream
+rewrite.
 
 - **2.53×** — Q15 speedup at 8 streams
 - **2.07×** — Q1 speedup at 8 streams
