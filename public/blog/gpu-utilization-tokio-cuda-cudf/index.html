@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="How an async Rust and CUDA stream integration improved GPU utilization for aggregate-heavy OLAP queries in libcudf-rs."
+    />
+    <title>a tale of two runtimes — jayant shrivastava</title>
+    <link rel="canonical" href="https://jayantshrivastava.com/blog/gpu-utilization-tokio-cuda-cudf/" />
+    <link rel="icon" type="image/png" href="../../assets/pixel/shawarma.png" />
+    <script>
+      ;(() => {
+        let savedTheme = null
+        try {
+          savedTheme = localStorage.getItem('theme')
+        } catch {}
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.dataset.theme = savedTheme || (prefersDark ? 'dark' : 'light')
+      })()
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: light;
+        --background: #fff;
+        --foreground: #111;
+        --link: #0000ee;
+        --muted: #666662;
+        --faint: #8a8a84;
+        --line: #d7d7d1;
+        --panel: #f5f5f1;
+        --panel-strong: #e9e9e2;
+        --blue: #315efb;
+        --green: #168147;
+        --orange: #c85d16;
+        --purple: #7754c9;
+        --red: #c83d4b;
+        font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        background: var(--background);
+        color: var(--foreground);
+        font-synthesis: none;
+      }
+
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --background: #111;
+        --foreground: #eeeeea;
+        --link: #8ab4f8;
+        --muted: #aaa9a3;
+        --faint: #85857f;
+        --line: #373733;
+        --panel: #191917;
+        --panel-strong: #242420;
+        --blue: #8ab4f8;
+        --green: #62c78b;
+        --orange: #f0a060;
+        --purple: #b79aef;
+        --red: #ef8490;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        line-height: 1.65;
+        background: var(--background);
+        color: var(--foreground);
+        transition: background-color 120ms linear, color 120ms linear;
+      }
+
+      a {
+        color: var(--link);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      a:hover {
+        text-decoration-thickness: 2px;
+      }
+
+      .shell {
+        width: min(90%, 760px);
+        margin: 0 auto;
+        padding: 48px 0 80px;
+      }
+
+      .site-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 68px;
+        font-size: 14px;
+      }
+
+      .site-nav__home {
+        color: var(--foreground);
+      }
+
+      .theme-toggle {
+        width: 34px;
+        height: 34px;
+        padding: 2px;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+      }
+
+      .theme-toggle:focus-visible,
+      .animation-toggle:focus-visible {
+        outline: 2px solid var(--link);
+        outline-offset: 2px;
+      }
+
+      .theme-toggle img {
+        width: 30px;
+        height: 30px;
+        display: block;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        transition: transform 180ms steps(3, end);
+      }
+
+      :root[data-theme="dark"] .theme-toggle img {
+        transform: rotate(180deg);
+      }
+
+      .eyebrow {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 13px;
+        text-transform: lowercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 720px;
+        margin-bottom: 18px;
+        font-size: clamp(32px, 6vw, 48px);
+        line-height: 1.08;
+        letter-spacing: -0.035em;
+      }
+
+      .dek {
+        max-width: 680px;
+        margin-bottom: 22px;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.55;
+      }
+
+      .post-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding-top: 17px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .animation-toggle {
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 2px;
+        background: var(--background);
+        color: var(--foreground);
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .motion-icon--pause {
+        display: flex;
+        gap: 3px;
+      }
+
+      .motion-icon--pause::before,
+      .motion-icon--pause::after {
+        width: 3px;
+        height: 11px;
+        content: "";
+        background: currentColor;
+      }
+
+      .motion-icon--play {
+        display: none;
+        width: 0;
+        height: 0;
+        margin-left: 2px;
+        border-top: 6px solid transparent;
+        border-bottom: 6px solid transparent;
+        border-left: 9px solid currentColor;
+      }
+
+      .diagram.is-paused .motion-icon--pause {
+        display: none;
+      }
+
+      .diagram.is-paused .motion-icon--play {
+        display: block;
+      }
+
+      article > header {
+        margin-bottom: 62px;
+      }
+
+      article > section {
+        margin-top: 70px;
+      }
+
+      section h2:not(:first-child) {
+        margin-top: 70px;
+      }
+
+      h2 {
+        margin-bottom: 19px;
+        font-size: 23px;
+        line-height: 1.25;
+        letter-spacing: -0.02em;
+      }
+
+      h3 {
+        margin: 34px 0 12px;
+        font-size: 16px;
+      }
+
+      p {
+        margin-bottom: 18px;
+        font-size: 16px;
+      }
+
+      .lede {
+        font-size: 18px;
+      }
+
+      code {
+        padding: 1px 4px;
+        border: 1px solid var(--line);
+        border-radius: 2px;
+        background: var(--panel);
+        font: inherit;
+        font-size: 0.9em;
+      }
+
+      article pre {
+        overflow-x: auto;
+        margin: 16px 0 26px;
+        padding: 17px 19px;
+        border: 1px solid var(--line);
+        border-radius: 2px;
+        background: var(--panel);
+        font: inherit;
+        font-size: 13px;
+        line-height: 1.75;
+      }
+
+      article pre code {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        font: inherit;
+      }
+
+      .language-rust .syntax-keyword,
+      .language-rust .syntax-macro {
+        color: var(--purple);
+      }
+
+      .language-rust .syntax-type {
+        color: var(--blue);
+      }
+
+      .language-rust .syntax-variant,
+      .language-rust .syntax-number {
+        color: var(--orange);
+      }
+
+      .language-rust .syntax-function {
+        color: var(--green);
+      }
+
+      .language-rust .syntax-comment {
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      .language-rust .syntax-string {
+        color: var(--red);
+      }
+
+      .metrics-list {
+        margin: 22px 0 28px;
+        padding-left: 23px;
+      }
+
+      .metrics-list li {
+        margin: 7px 0;
+        padding-left: 3px;
+        font-size: 14px;
+      }
+
+      .takeaway {
+        margin: 28px 0;
+        padding: 17px 19px;
+        border-left: 3px solid var(--foreground);
+        background: var(--panel);
+      }
+
+      .takeaway p {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .wide-figure {
+        width: min(1040px, calc(100vw - 32px));
+        margin: 38px 0 22px 50%;
+        transform: translateX(-50%);
+      }
+
+      .wide-figure[hidden] {
+        display: none !important;
+      }
+
+      .diagram {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        background: var(--panel);
+      }
+
+      .diagram__toggle {
+        position: absolute;
+        top: 13px;
+        right: 13px;
+        z-index: 2;
+        background: var(--panel);
+      }
+
+      .diagram__progress {
+        position: absolute;
+        top: 26px;
+        right: 52px;
+        z-index: 2;
+        width: 72px;
+        height: 3px;
+        overflow: hidden;
+        border-radius: 2px;
+        background: var(--panel-strong);
+      }
+
+      .diagram__progress::after {
+        position: absolute;
+        inset: 0;
+        content: "";
+        background: var(--blue);
+        transform: scaleX(0);
+        transform-origin: left center;
+        animation: diagram-progress var(--diagram-duration, 8s) linear infinite;
+      }
+
+      .diagram svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .diagram .node {
+        fill: var(--background);
+        stroke: var(--line);
+        stroke-width: 1.3;
+      }
+
+      .diagram .node--aggregate {
+        stroke: var(--foreground);
+        stroke-width: 1.8;
+      }
+
+      .diagram .wire {
+        fill: none;
+        stroke: var(--faint);
+        stroke-width: 1.5;
+      }
+
+      .diagram .wire--active {
+        stroke: var(--blue);
+        stroke-dasharray: 6 7;
+        animation: wire-travel 1s linear infinite;
+      }
+
+      .diagram text {
+        fill: var(--foreground);
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      .diagram .svg-label {
+        fill: var(--muted);
+        font-size: 12px;
+      }
+
+      .diagram .svg-node-label {
+        font-size: 13px;
+        font-weight: 600;
+        text-anchor: middle;
+      }
+
+      .diagram .partial-aggregate-label {
+        font-size: 10px;
+      }
+
+      .diagram .svg-small {
+        fill: var(--muted);
+        font-size: 10px;
+        text-anchor: middle;
+      }
+
+      .packet rect {
+        fill: var(--blue);
+      }
+
+      .packet text {
+        fill: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        text-anchor: middle;
+      }
+
+      .serial-packet {
+        opacity: 0;
+        animation-duration: 26s;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+      }
+
+      .serial-packet--0 {
+        animation-name: serial-flow-0;
+      }
+
+      .serial-packet--1 {
+        animation-name: serial-flow-1;
+      }
+
+      .serial-packet--2 {
+        animation-name: serial-flow-2;
+      }
+
+      .serial-active-batch {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation-duration: 26s;
+        animation-timing-function: ease-in-out;
+        animation-iteration-count: infinite;
+      }
+
+      .serial-active-batch--0 {
+        animation-name: serial-batch-bounce-0;
+      }
+
+      .serial-active-batch--1 {
+        animation-name: serial-batch-bounce-1;
+      }
+
+      .serial-active-batch--2 {
+        animation-name: serial-batch-bounce-2;
+      }
+
+      .serial-kernel-running {
+        opacity: 0;
+        animation: serial-kernel-visible 2s steps(1, end) infinite;
+      }
+
+      .serial-kernel-running text,
+      .serial-kernel-idle text {
+        fill: #111;
+        font-size: 10px;
+        font-weight: 400;
+      }
+
+      .serial-kernel-idle {
+        opacity: 0;
+        animation: serial-kernel-idle 2s steps(1, end) infinite;
+      }
+
+      .serial-kernel-idle text {
+        fill: var(--muted);
+      }
+
+      .serial-kernel-dot--2 {
+        animation: serial-kernel-dot-2 1.2s steps(1, end) infinite;
+      }
+
+      .serial-kernel-dot--3 {
+        animation: serial-kernel-dot-3 1.2s steps(1, end) infinite;
+      }
+
+      .util-low,
+      .multi-util-fill {
+        transform-box: fill-box;
+        transform-origin: left center;
+      }
+
+      .util-low {
+        fill: #b58a22;
+        animation: low-util 2s linear infinite;
+      }
+
+      .multi-packet {
+        opacity: 0;
+        animation: multi-flow 7s linear infinite;
+      }
+
+      .multi-packet--1 {
+        animation-delay: -1.3s;
+      }
+
+      .multi-packet--2 {
+        animation-delay: -4.8s;
+      }
+
+      .multi-packet--3 {
+        animation-delay: -0.2s;
+      }
+
+      .multi-packet--4 {
+        animation-delay: -3.1s;
+      }
+
+      .multi-active-batch {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: multi-batch-bounce 0.8s ease-in-out infinite alternate;
+      }
+
+      .multi-active-batch--2 {
+        animation-delay: -0.5s;
+      }
+
+      .multi-active-batch--3 {
+        animation-delay: -0.2s;
+      }
+
+      .multi-active-batch--4 {
+        animation-delay: -0.7s;
+      }
+
+      .multi-kernel-running text {
+        fill: #111;
+        font-size: 10px;
+        font-weight: 400;
+      }
+
+      .multi-kernel-frame {
+        opacity: 0;
+        animation: multi-kernel-frame 8s steps(1, end) infinite;
+      }
+
+      .multi-kernel-frame--2 {
+        animation-delay: -6s;
+      }
+
+      .multi-kernel-frame--3 {
+        animation-delay: -4s;
+      }
+
+      .multi-kernel-frame--4 {
+        animation-delay: -2s;
+      }
+
+      .multi-kernel-frame text {
+        fill: #111 !important;
+        font-size: 9px;
+        font-weight: 400;
+        text-anchor: middle;
+      }
+
+      .multi-final-kernel {
+        opacity: 0;
+        animation: multi-final-kernel 8s ease-in-out infinite;
+      }
+
+      .multi-final-kernel__track {
+        fill: var(--panel-strong);
+      }
+
+      .multi-final-kernel__block {
+        fill: var(--green);
+      }
+
+      .multi-final-kernel text {
+        fill: #111 !important;
+        font-size: 10px;
+        font-weight: 400;
+        text-anchor: middle;
+      }
+
+      .final-pulse {
+        fill: var(--background);
+        stroke: var(--foreground);
+        stroke-width: 1.8;
+        animation: final-pulse 8s ease-in-out infinite;
+      }
+
+      .multi-util-fill {
+        fill: var(--green);
+      }
+
+      .multi-util-fill--timeline {
+        animation: multi-util-timeline 8s ease-in-out infinite;
+      }
+
+      .runtime-lane,
+      .runtime-worker {
+        fill: var(--panel-strong);
+      }
+
+      .runtime-worker {
+        stroke: var(--line);
+        stroke-width: 1;
+      }
+
+      .runtime-worker-blocked {
+        fill: var(--red);
+        animation: runtime-worker-blocked 2.4s ease-in-out infinite;
+      }
+
+      .runtime-future-card {
+        fill: var(--background);
+        stroke: var(--blue);
+        stroke-width: 1.5;
+      }
+
+      .runtime-blocked-future {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: runtime-blocked-bump 2.4s ease-in-out infinite;
+      }
+
+      .runtime-blocked-future--2 {
+        animation-delay: -0.16s;
+      }
+
+      .runtime-blocked-future--3 {
+        animation-delay: -0.32s;
+      }
+
+      .runtime-barrier {
+        animation: runtime-barrier 1.2s ease-in-out infinite;
+      }
+
+      .runtime-flowing-future {
+        opacity: 0;
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: runtime-future-flow 6s linear infinite;
+      }
+
+      .runtime-flowing-future--2 {
+        animation-delay: -2s;
+      }
+
+      .runtime-flowing-future--3 {
+        animation-delay: -4s;
+      }
+
+      .runtime-pool-fill {
+        fill: var(--orange);
+        transform-box: fill-box;
+        transform-origin: left center;
+        animation: runtime-blocking-pool 6s ease-in-out infinite;
+      }
+
+      .runtime-handoff,
+      .runtime-wake {
+        fill: var(--blue);
+        opacity: 0;
+      }
+
+      .runtime-handoff {
+        animation: runtime-handoff 6s ease-in-out infinite;
+      }
+
+      .runtime-wake {
+        fill: var(--green);
+        animation: runtime-wake 6s ease-in-out infinite;
+      }
+
+      .diagram.is-paused svg * {
+        animation-play-state: paused !important;
+      }
+
+      .diagram.is-paused .diagram__progress::after {
+        animation-play-state: paused !important;
+      }
+
+      @keyframes diagram-progress {
+        to {
+          transform: scaleX(1);
+        }
+      }
+
+      @keyframes wire-travel {
+        to {
+          stroke-dashoffset: -13;
+        }
+      }
+
+      @keyframes serial-flow-0 {
+        0%, 5.77% {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        7.69%, 21.15% {
+          opacity: 1;
+          transform: translateX(185px);
+        }
+        23.08%, 44.23% {
+          opacity: 1;
+          transform: translateX(370px);
+        }
+        46.15%, 59.62% {
+          opacity: 1;
+          transform: translateX(554px);
+        }
+        61.54%, 98% {
+          opacity: 1;
+          transform: translateX(738px);
+        }
+        99%, 100% {
+          opacity: 0;
+          transform: translateX(738px);
+        }
+      }
+
+      @keyframes serial-flow-1 {
+        0%, 13.46% {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        15.38%, 36.54% {
+          opacity: 1;
+          transform: translateX(185px);
+        }
+        38.46%, 67.31% {
+          opacity: 1;
+          transform: translateX(370px);
+        }
+        69.23%, 82.69% {
+          opacity: 1;
+          transform: translateX(554px);
+        }
+        84.62%, 98% {
+          opacity: 1;
+          transform: translateX(738px);
+        }
+        99%, 100% {
+          opacity: 0;
+          transform: translateX(738px);
+        }
+      }
+
+      @keyframes serial-flow-2 {
+        0%, 28.85% {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        30.77%, 51.92% {
+          opacity: 1;
+          transform: translateX(185px);
+        }
+        53.85%, 75% {
+          opacity: 1;
+          transform: translateX(370px);
+        }
+        76.92%, 90.38% {
+          opacity: 1;
+          transform: translateX(554px);
+        }
+        92.31%, 98% {
+          opacity: 1;
+          transform: translateX(738px);
+        }
+        99%, 100% {
+          opacity: 0;
+          transform: translateX(738px);
+        }
+      }
+
+      @keyframes low-util {
+        0% {
+          transform: scaleX(0.32);
+        }
+        36% {
+          transform: scaleX(0.31);
+        }
+        70% {
+          transform: scaleX(0.33);
+        }
+        74% {
+          transform: scaleX(0.32);
+        }
+        75%, 100% {
+          transform: scaleX(0);
+        }
+      }
+
+      @keyframes serial-kernel-visible {
+        0%, 74% {
+          opacity: 1;
+        }
+        75%, 100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes serial-kernel-idle {
+        0%, 74% {
+          opacity: 0;
+        }
+        75%, 100% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes serial-kernel-dot-2 {
+        0%, 32% {
+          opacity: 0;
+        }
+        33%, 100% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes serial-kernel-dot-3 {
+        0%, 65% {
+          opacity: 0;
+        }
+        66%, 100% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes serial-batch-bounce-0 {
+        0%, 5.77%, 15.38%, 21.15%, 38.46%, 44.23%, 53.85%, 59.62%, 100% {
+          transform: translateY(0);
+        }
+        2.88%, 18.27%, 41.35%, 56.73% {
+          transform: translateY(-5px);
+        }
+      }
+
+      @keyframes serial-batch-bounce-1 {
+        0%, 7.69%, 13.46%, 30.77%, 36.54%, 61.54%, 67.31%, 76.92%,
+        82.69%, 100% {
+          transform: translateY(0);
+        }
+        10.58%, 33.65%, 64.42%, 79.81% {
+          transform: translateY(-5px);
+        }
+      }
+
+      @keyframes serial-batch-bounce-2 {
+        0%, 23.08%, 28.85%, 46.15%, 51.92%, 69.23%, 75%, 84.62%, 90.38%,
+        100% {
+          transform: translateY(0);
+        }
+        25.96%, 49.04%, 72.12%, 87.5% {
+          transform: translateY(-5px);
+        }
+      }
+
+      @keyframes multi-flow {
+        0%, 4% {
+          opacity: 0;
+          transform: translateX(0);
+        }
+        5% {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        15%, 30% {
+          opacity: 1;
+          transform: translateX(71px);
+        }
+        38%, 56% {
+          opacity: 1;
+          transform: translateX(246px);
+        }
+        64%, 82% {
+          opacity: 1;
+          transform: translateX(425px);
+        }
+        88%, 100% {
+          opacity: 0;
+          transform: translateX(425px);
+        }
+      }
+
+      @keyframes multi-batch-bounce {
+        to {
+          transform: translateY(-4px);
+        }
+      }
+
+      @keyframes multi-kernel-frame {
+        0%, 24.9% {
+          opacity: 1;
+        }
+        25%, 100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes final-pulse {
+        0%, 85%, 100% {
+          fill: var(--background);
+        }
+        89%, 99.5% {
+          fill: var(--panel-strong);
+        }
+      }
+
+      @keyframes multi-final-kernel {
+        0%, 85% {
+          opacity: 0;
+        }
+        89%, 99.5% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes multi-util-timeline {
+        0%, 100% {
+          transform: scaleX(0.96);
+        }
+        12% {
+          transform: scaleX(1);
+        }
+        23% {
+          transform: scaleX(0.95);
+        }
+        32% {
+          transform: scaleX(0.73);
+        }
+        43% {
+          transform: scaleX(0.7);
+        }
+        55% {
+          transform: scaleX(0.75);
+        }
+        68% {
+          transform: scaleX(0.71);
+        }
+        77% {
+          transform: scaleX(0.74);
+        }
+        86% {
+          transform: scaleX(0.95);
+        }
+        93% {
+          transform: scaleX(1);
+        }
+      }
+
+      @keyframes runtime-worker-blocked {
+        0%, 100% {
+          opacity: 0.78;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes runtime-blocked-bump {
+        0%, 18%, 58%, 100% {
+          transform: translateX(0);
+        }
+        34% {
+          transform: translateX(12px);
+        }
+        43% {
+          transform: translateX(7px);
+        }
+      }
+
+      @keyframes runtime-barrier {
+        0%, 100% {
+          opacity: 0.55;
+          transform: scale(0.94);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.05);
+        }
+      }
+
+      @keyframes runtime-future-flow {
+        0% {
+          opacity: 0;
+          transform: translateX(0);
+        }
+        5% {
+          opacity: 1;
+        }
+        72% {
+          opacity: 1;
+          transform: translateX(326px);
+        }
+        78%, 100% {
+          opacity: 0;
+          transform: translateX(326px);
+        }
+      }
+
+      @keyframes runtime-blocking-pool {
+        0%, 10%, 92%, 100% {
+          transform: scaleX(0.04);
+        }
+        18%, 78% {
+          transform: scaleX(1);
+        }
+      }
+
+      @keyframes runtime-handoff {
+        0%, 9% {
+          opacity: 0;
+          transform: translateY(0);
+        }
+        13% {
+          opacity: 1;
+        }
+        21% {
+          opacity: 1;
+          transform: translateY(78px);
+        }
+        24%, 100% {
+          opacity: 0;
+          transform: translateY(78px);
+        }
+      }
+
+      @keyframes runtime-wake {
+        0%, 76% {
+          opacity: 0;
+          transform: translateY(0);
+        }
+        80% {
+          opacity: 1;
+        }
+        88% {
+          opacity: 1;
+          transform: translateY(-78px);
+        }
+        91%, 100% {
+          opacity: 0;
+          transform: translateY(-78px);
+        }
+      }
+
+      figcaption {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .plan-change {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 15px;
+        align-items: center;
+        margin: 30px 0;
+      }
+
+      .plan {
+        min-width: 0;
+        padding: 17px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      .plan__title {
+        margin-bottom: 12px;
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+      }
+
+      .plan pre {
+        overflow: auto;
+        margin: 0;
+        color: var(--foreground);
+        font: inherit;
+        font-size: 12px;
+        line-height: 1.75;
+      }
+
+      .plan-change__arrow {
+        color: var(--muted);
+        font-size: 22px;
+      }
+
+      .steps {
+        margin: 25px 0 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: step;
+      }
+
+      .steps li {
+        position: relative;
+        margin-bottom: 18px;
+        padding-left: 42px;
+        font-size: 15px;
+      }
+
+      .steps li::before {
+        content: counter(step);
+        counter-increment: step;
+        position: absolute;
+        top: 1px;
+        left: 0;
+        width: 25px;
+        height: 25px;
+        border: 1px solid var(--foreground);
+        border-radius: 50%;
+        font-size: 12px;
+        line-height: 23px;
+        text-align: center;
+      }
+
+      .goals-list {
+        margin: 20px 0 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: goal;
+      }
+
+      .goals-list li {
+        position: relative;
+        margin-bottom: 16px;
+        padding-left: 2.25em;
+        counter-increment: goal;
+      }
+
+      .goals-list li::before {
+        position: absolute;
+        left: 0;
+        content: "(" counter(goal, lower-alpha) ")";
+      }
+
+      .results-intro {
+        margin-bottom: 28px;
+      }
+
+      .bench-summary {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        margin: 28px 0;
+        border: 1px solid var(--line);
+        background: var(--line);
+      }
+
+      .bench-stat {
+        padding: 17px 14px;
+        background: var(--background);
+      }
+
+      .bench-stat strong,
+      .profile-stat strong {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 22px;
+        line-height: 1.2;
+      }
+
+      .bench-stat span,
+      .profile-stat span {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        margin: 26px 0 12px;
+        border: 1px solid var(--line);
+      }
+
+      table {
+        width: 100%;
+        min-width: 610px;
+        border-collapse: collapse;
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      th,
+      td {
+        padding: 11px 13px;
+        border-bottom: 1px solid var(--line);
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+
+      thead th {
+        background: var(--panel);
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      td.best {
+        color: var(--green);
+        font-weight: 700;
+      }
+
+      td strong {
+        color: var(--green);
+      }
+
+      .table-note {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .profile-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin: 30px 0 34px;
+      }
+
+      .profile-stat {
+        padding: 14px 0;
+        border-top: 2px solid var(--foreground);
+      }
+
+      .profile-stat strong {
+        font-size: 19px;
+      }
+
+      .profile-comparison {
+        margin-top: 28px;
+      }
+
+      .profile-shot {
+        display: block;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        background: #eee;
+      }
+
+      .profile-shot img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .profile-comparison + .profile-comparison {
+        margin-top: 30px;
+      }
+
+      .profile-label {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 9px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .profile-label span {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 400;
+      }
+
+      .end-note {
+        margin-top: 48px;
+        padding-top: 24px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .end-note p {
+        font-size: inherit;
+      }
+
+      footer {
+        margin-top: 80px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      @media (max-width: 680px) {
+        .shell {
+          padding-top: 30px;
+        }
+
+        .site-nav {
+          margin-bottom: 48px;
+        }
+
+        .animation-toggle {
+          width: 40px;
+          height: 40px;
+        }
+
+        .diagram__toggle {
+          top: 9px;
+          right: 9px;
+        }
+
+        .diagram__progress {
+          top: 28px;
+          right: 58px;
+        }
+
+        h1 {
+          font-size: 34px;
+        }
+
+        .dek,
+        .lede {
+          font-size: 16px;
+        }
+
+        .plan-change {
+          grid-template-columns: 1fr;
+        }
+
+        .plan-change__arrow {
+          transform: rotate(90deg);
+          text-align: center;
+        }
+
+        .bench-summary,
+        .profile-stats {
+          grid-template-columns: 1fr;
+        }
+
+        .bench-stat {
+          padding: 13px 14px;
+        }
+
+        .profile-stat {
+          margin-bottom: 4px;
+        }
+
+        article > section {
+          margin-top: 58px;
+        }
+
+        section h2:not(:first-child) {
+          margin-top: 58px;
+        }
+
+        .diagram .svg-label {
+          font-size: 15px;
+        }
+
+        .diagram .svg-node-label {
+          font-size: 15px;
+        }
+
+        .diagram .svg-small {
+          font-size: 13px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <nav class="site-nav" aria-label="site navigation">
+        <a class="site-nav__home" href="../../">← jayant shrivastava</a>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="switch color theme">
+          <img src="../../assets/pixel/theme.png" alt="" />
+        </button>
+      </nav>
+
+      <main>
+        <article>
+          <!-- GENERATED_HEADER_START -->
+<header>
+  <p class="eyebrow">september 18, 2026</p>
+  <h1>a tale of two runtimes</h1>
+  <p class="dek">improving GPU utilization with Tokio and cuDF</p>
+</header>
+<!-- GENERATED_HEADER_END -->
+
+          <!-- GENERATED_INTRO_START -->
+<p>There has been growing interest in GPU query engines over the last two years, notably with the <a href="https://arxiv.org/abs/2508.05029" target="_blank" rel="noopener noreferrer">Theseus paper</a>, NVIDIA's <a href="https://docs.nvidia.com/heavyai/overview" target="_blank" rel="noopener noreferrer">acquisition of HEAVY.AI</a>, and NVIDIA's blog post on <a href="https://developer.nvidia.com/blog/designing-gpu-accelerated-query-engines-with-nvidia-gqe/" target="_blank" rel="noopener noreferrer">GQE</a>. Naturally, I imagine there's some interest in finding use cases for cheap, outdated GPUs that are too small for frontier AI.</p>
+<p>Recently, I spent a week working on <a href="https://github.com/gabotechs/libcudf-rs" target="_blank" rel="noopener noreferrer">libcudf-rs</a>, an experimental OLAP engine built on <a href="https://datafusion.apache.org/" target="_blank" rel="noopener noreferrer">Apache DataFusion</a> and Rust bindings for <a href="https://github.com/rapidsai/cudf" target="_blank" rel="noopener noreferrer">cuDF</a> (huge shoutout to my colleague and original author <a href="https://github.com/gabotechs" target="_blank" rel="noopener noreferrer">@gabotechs</a> who recently gave a <a href="https://www.youtube.com/watch?v=P5v3y1sUMc8" target="_blank" rel="noopener noreferrer">talk</a> about it). A major goal of the project is to see whether a GPU instance can offer better performance per dollar than a CPU-only instance on OLAP workloads.</p>
+<p>My goal was to finalize our execution model, keeping in mind two goals:</p>
+<ol class="goals-list"><li>keep resources (i.e., the GPU) saturated when compute or memory capacity is available; and</li><li>schedule work efficiently across three runtimes, reconciling DataFusion's <a href="https://dl.acm.org/doi/10.1145/93605.98720" target="_blank" rel="noopener noreferrer">Volcano-based</a> execution model, the Tokio runtime, and the CUDA/cuDF runtime.</li></ol>
+<!-- GENERATED_INTRO_END -->
+
+          <section id="the-current-model">
+            <!-- GENERATED_CURRENT_MODEL_START -->
+<h2>problem: the GPU wasn't saturated</h2>
+<p>The current execution model used one CUDA stream and one DataFusion partition (analogous to a Tokio task), meaning only one host thread was feeding the GPU. The GPU could execute only one kernel or host-to-device copy at a time (with the sole exception of the cuDF <code>read_parquet</code> kernel, which uses streams internally).</p>
+<!-- GENERATED_CURRENT_MODEL_END -->
+
+            <figure class="wide-figure">
+              <div class="diagram" style="--diagram-duration: 26s">
+                <span class="diagram__progress" aria-hidden="true"></span>
+                <button
+                  class="animation-toggle diagram__toggle"
+                  type="button"
+                  data-animation-toggle
+                  aria-label="pause the single-stream animation"
+                  aria-pressed="false"
+                >
+                  <span class="motion-icon motion-icon--pause" aria-hidden="true"></span>
+                  <span class="motion-icon motion-icon--play" aria-hidden="true"></span>
+                </button>
+                <svg viewBox="0 0 920 282" role="img" aria-labelledby="serial-title serial-desc">
+                  <title id="serial-title">The original single-stream aggregate pipeline</title>
+                  <desc id="serial-desc">
+                    One of three ordered batches advances during each GPU-idle window. Scheduling is
+                    irregular, but b1 never passes b0 and b2 never passes b1. The selected batch bounces
+                    in place while its kernel runs.
+                  </desc>
+                  <text class="svg-label" x="30" y="34">before</text>
+                  <line class="wire" x1="76" y1="137" x2="845" y2="137" />
+
+                  <rect class="node" x="28" y="96" width="126" height="82" rx="3" />
+                  <text class="svg-node-label" x="91" y="127">parquet</text>
+                  <text class="svg-small" x="91" y="150">8 partitions</text>
+
+                  <rect class="node" x="212" y="96" width="128" height="82" rx="3" />
+                  <text class="svg-node-label" x="276" y="127">coalesce</text>
+                  <text class="svg-small" x="276" y="150">8 → 1</text>
+
+                  <rect class="node" x="398" y="96" width="126" height="82" rx="3" />
+                  <text class="svg-node-label" x="461" y="127">filter</text>
+                  <text class="svg-small" x="461" y="150">1 partition</text>
+
+                  <rect class="node" x="582" y="96" width="126" height="82" rx="3" />
+                  <text class="svg-node-label" x="645" y="127">project</text>
+                  <text class="svg-small" x="645" y="150">1 partition</text>
+
+                  <rect class="node node--aggregate" x="766" y="96" width="126" height="82" rx="3" />
+                  <text class="svg-node-label" x="829" y="127">aggregate</text>
+                  <text class="svg-small" x="829" y="150">single</text>
+
+                  <line class="wire" x1="41" y1="193" x2="879" y2="193" />
+
+                  <g class="packet serial-packet serial-packet--2">
+                    <g class="serial-active-batch serial-active-batch--2">
+                      <rect x="41" y="184" width="28" height="18" rx="2" />
+                      <text x="55" y="197">b2</text>
+                    </g>
+                  </g>
+                  <g class="packet serial-packet serial-packet--1">
+                    <g class="serial-active-batch serial-active-batch--1">
+                      <rect x="77" y="184" width="28" height="18" rx="2" />
+                      <text x="91" y="197">b1</text>
+                    </g>
+                  </g>
+                  <g class="packet serial-packet serial-packet--0">
+                    <g class="serial-active-batch serial-active-batch--0">
+                      <rect x="113" y="184" width="28" height="18" rx="2" />
+                      <text x="127" y="197">b0</text>
+                    </g>
+                  </g>
+
+                  <text class="svg-label" x="30" y="248">GPU activity</text>
+                  <rect x="142" y="229" width="720" height="30" rx="2" fill="var(--panel-strong)" />
+                  <rect class="util-low" x="142" y="229" width="720" height="30" rx="2" />
+                  <g class="serial-kernel-running">
+                    <text x="157" y="248">kernel running</text>
+                    <text x="247" y="248">.</text>
+                    <text class="serial-kernel-dot--2" x="254" y="248">.</text>
+                    <text class="serial-kernel-dot--3" x="261" y="248">.</text>
+                  </g>
+                  <g class="serial-kernel-idle">
+                    <text x="157" y="248">no kernel running</text>
+                  </g>
+                </svg>
+              </div>
+            </figure>
+
+            <!-- GENERATED_CURRENT_MODEL_CONTINUATION_START -->
+<p>The reason we had this simple model was that it was easier to reason about correctness and lifetimes. The safeguards that Rust has around shared ownership and lifetimes don't really apply to data on the GPU. For example, the borrow checker and type system cannot detect potential cross-stream dependencies or ensure that a necessary stream sync happens before reading data on the GPU.</p>
+<p>However, as the project matured, we started looking for the next performance gain, namely in the form of concurrency and parallelism. We wanted to:</p>
+<ol class="goals-list"><li>efficiently schedule cuDF/GPU operations from the host runtime; and</li><li>concurrently run operations on the GPU when it has available resources.</li></ol>
+<p>Doing so requires migrating to a multi-task, multi-CUDA-stream model, which I'll dive into below.</p>
+<!-- GENERATED_CURRENT_MODEL_CONTINUATION_END -->
+          </section>
+
+          <section id="first-stop-blocking-tokio">
+            <!-- GENERATED_RUNTIME_START -->
+<h2>first: stop blocking host threads</h2>
+<p>Every DataFusion operator produces a <code>futures::Stream</code> that polls its input, performs the operation, and yields a <code>RecordBatch</code>. For example, a DataFusion <code>AggregateExec</code> implements something like this:</p>
+<pre><code class="language-rust"><span class="syntax-keyword">fn</span> <span class="syntax-function">poll_next</span>(<span class="syntax-keyword">mut</span> <span class="syntax-keyword">self</span>: <span class="syntax-type">Pin</span>&lt;&amp;<span class="syntax-keyword">mut</span> <span class="syntax-keyword">Self</span>&gt;, cx: &amp;<span class="syntax-keyword">mut</span> <span class="syntax-type">Context</span>&lt;<span class="syntax-string">'_</span>&gt;) -&gt; <span class="syntax-type">Poll</span>&lt;<span class="syntax-type">Option</span>&lt;<span class="syntax-type">Result</span>&lt;<span class="syntax-type">Batch</span>&gt;&gt;&gt; {
+    <span class="syntax-keyword">let</span> batch = <span class="syntax-macro">ready!</span>(<span class="syntax-keyword">self</span>.input.<span class="syntax-function">poll_next_unpin</span>(cx));
+    <span class="syntax-keyword">let</span> output = <span class="syntax-function">aggregate_on_cpu</span>(batch)?;
+    <span class="syntax-type">Poll</span>::<span class="syntax-variant">Ready</span>(<span class="syntax-variant">Some</span>(<span class="syntax-variant">Ok</span>(output)))
+}</code></pre>
+<p>For our GPU operators, we implemented a simple translation of the above. A <code>CuDFAggregateExec</code> is almost the same:</p>
+<pre><code class="language-rust"><span class="syntax-keyword">fn</span> <span class="syntax-function">poll_next</span>(<span class="syntax-keyword">mut</span> <span class="syntax-keyword">self</span>: <span class="syntax-type">Pin</span>&lt;&amp;<span class="syntax-keyword">mut</span> <span class="syntax-keyword">Self</span>&gt;, cx: &amp;<span class="syntax-keyword">mut</span> <span class="syntax-type">Context</span>&lt;<span class="syntax-string">'_</span>&gt;) -&gt; <span class="syntax-type">Poll</span>&lt;<span class="syntax-type">Option</span>&lt;<span class="syntax-type">Result</span>&lt;<span class="syntax-type">Batch</span>&gt;&gt;&gt; {
+    <span class="syntax-keyword">let</span> batch = <span class="syntax-macro">ready!</span>(<span class="syntax-keyword">self</span>.input.<span class="syntax-function">poll_next_unpin</span>(cx));
+    <span class="syntax-keyword">let</span> output = <span class="syntax-function">aggregate_on_gpu</span>(batch)?; <span class="syntax-comment">// new: launches a kernel</span>
+    <span class="syntax-type">Poll</span>::<span class="syntax-variant">Ready</span>(<span class="syntax-variant">Some</span>(<span class="syntax-variant">Ok</span>(output)))
+}</code></pre>
+<p>The problem is that <code>aggregate_on_gpu</code> calls into cuDF through FFI. cuDF enqueues kernels asynchronously, but its APIs are synchronous from the caller's perspective and may sync streams internally for correctness. This means <code>poll_next</code> cannot yield while executing cuDF code, resulting in long polls that block the calling Tokio executor thread.</p>
+<p>I inspected a query using the <a href="https://github.com/tokio-rs/console" target="_blank" rel="noopener noreferrer">Tokio Console</a> and saw the issue firsthand. In TPC-H Q1, the root task executing the query was marked busy for 9 of 10 seconds, with an average poll around 27 ms.</p>
+<pre><code class="language-text">         state   total   busy   sched   idle   polls   avg poll
+before    ▶       10s     9s    628ms   36µs     335     ~27ms</code></pre>
+<p>This meant that for 9 seconds, the executor could not schedule another future on that worker thread until the call returned.</p>
+<p>In <a href="https://github.com/gabotechs/libcudf-rs/pull/89" target="_blank" rel="noopener noreferrer">PR #89</a>, I implemented a simple fix. Because cuDF calls can block their calling thread, I moved the GPU aggregate kernel work to Tokio's blocking pool. <code>spawn_blocking</code> returns a future, allowing <code>poll_next</code> to return <code>Pending</code> while the work continues on another thread.</p>
+<pre><code class="language-rust"><span class="syntax-keyword">match</span> &amp;<span class="syntax-keyword">mut</span> <span class="syntax-keyword">self</span>.state {
+    <span class="syntax-type">State</span>::ReadingInput =&gt; {
+        <span class="syntax-comment">// Move the blocking GPU call to another thread.</span>
+        <span class="syntax-keyword">self</span>.state = <span class="syntax-type">State</span>::<span class="syntax-variant">Aggregating</span>(
+            tokio::task::<span class="syntax-function">spawn_blocking</span>(<span class="syntax-keyword">move</span> || <span class="syntax-function">aggregate_on_gpu</span>(batch)),
+        );
+        continue;
+    }
+    <span class="syntax-comment">// Later calls poll the GPU task's JoinHandle.</span>
+    <span class="syntax-type">State</span>::<span class="syntax-variant">Aggregating</span>(task) =&gt; <span class="syntax-keyword">match</span> <span class="syntax-type">Pin</span>::<span class="syntax-function">new</span>(task).<span class="syntax-function">poll</span>(cx) {
+        <span class="syntax-type">Poll</span>::<span class="syntax-variant">Pending</span> =&gt; <span class="syntax-type">Poll</span>::<span class="syntax-variant">Pending</span>,
+        <span class="syntax-type">Poll</span>::<span class="syntax-variant">Ready</span>(result) =&gt; <span class="syntax-function">finish</span>(result),
+    },
+}</code></pre>
+<!-- GENERATED_RUNTIME_END -->
+
+            <figure id="runtime-poll-animation" class="wide-figure" hidden>
+              <div class="diagram" style="--diagram-duration: 6s">
+                <span class="diagram__progress" aria-hidden="true"></span>
+                <button
+                  class="animation-toggle diagram__toggle"
+                  type="button"
+                  data-animation-toggle
+                  aria-label="pause the Tokio polling animation"
+                  aria-pressed="false"
+                  title="pause animation"
+                >
+                  <span class="motion-icon motion-icon--pause" aria-hidden="true"></span>
+                  <span class="motion-icon motion-icon--play" aria-hidden="true"></span>
+                </button>
+                <svg viewBox="0 0 920 410" role="img" aria-labelledby="runtime-title runtime-desc">
+                  <title id="runtime-title">A long GPU poll blocks other futures from running</title>
+                  <desc id="runtime-desc">
+                    Before, three ready futures remain stuck in the run queue because synchronous GPU
+                    work monopolizes the Tokio worker. After, the GPU call runs in the blocking pool while
+                    ready futures continue to pass through the Tokio worker.
+                  </desc>
+
+                  <text class="svg-label" x="30" y="34">before · one long poll owns the worker</text>
+                  <text class="svg-label" x="490" y="34">after · the long call runs elsewhere</text>
+                  <line x1="460" y1="58" x2="460" y2="366" stroke="var(--line)" stroke-width="1" />
+
+                  <text class="svg-small" x="73" y="79">ready futures</text>
+                  <g class="runtime-blocked-future">
+                    <rect class="runtime-future-card" x="30" y="91" width="72" height="42" rx="3" />
+                    <text class="svg-node-label" x="66" y="116">future a</text>
+                  </g>
+                  <g class="runtime-blocked-future runtime-blocked-future--2">
+                    <rect class="runtime-future-card" x="111" y="91" width="72" height="42" rx="3" />
+                    <text class="svg-node-label" x="147" y="116">future b</text>
+                  </g>
+                  <g class="runtime-blocked-future runtime-blocked-future--3">
+                    <rect class="runtime-future-card" x="192" y="91" width="72" height="42" rx="3" />
+                    <text class="svg-node-label" x="228" y="116">future c</text>
+                  </g>
+                  <line class="wire" x1="272" y1="112" x2="306" y2="112" />
+                  <g class="runtime-barrier" style="transform-box: fill-box; transform-origin: center">
+                    <circle cx="307" cy="112" r="13" fill="var(--background)" stroke="var(--red)" stroke-width="2" />
+                    <path d="M301 106 L313 118 M313 106 L301 118" stroke="var(--red)" stroke-width="2" />
+                  </g>
+
+                  <text class="svg-small" x="374" y="79" text-anchor="middle">Tokio worker</text>
+                  <rect class="runtime-worker" x="320" y="88" width="108" height="82" rx="3" />
+                  <rect class="runtime-worker-blocked" x="328" y="96" width="92" height="66" rx="2" />
+                  <text x="374" y="122" font-size="11" text-anchor="middle" fill="#fff">GPU poll()</text>
+                  <text x="374" y="142" font-size="10" text-anchor="middle" fill="#fff">waits ~27 ms</text>
+
+                  <text x="30" y="188" font-size="12" font-weight="700" fill="var(--red)">ready, but cannot be polled</text>
+                  <text class="svg-small" x="133" y="208">the worker cannot reach another future</text>
+
+                  <text class="svg-small" x="75" y="258">executor thread</text>
+                  <rect class="runtime-lane" x="30" y="270" width="398" height="44" rx="3" />
+                  <rect class="runtime-worker-blocked" x="39" y="278" width="380" height="28" rx="2" />
+                  <text x="229" y="297" font-size="11" text-anchor="middle" fill="#fff">blocked inside GPU call · busy 9 of 10 seconds</text>
+                  <text class="svg-label" x="30" y="349">one future stalls every future assigned to this worker</text>
+
+                  <text class="svg-small" x="560" y="79">ready queue</text>
+                  <line class="wire wire--active" x1="500" y1="112" x2="873" y2="112" />
+
+                  <text class="svg-small" x="705" y="79" text-anchor="middle">Tokio worker</text>
+                  <rect class="runtime-worker" x="650" y="88" width="110" height="50" rx="3" />
+                  <text class="svg-node-label" x="705" y="109">short poll()</text>
+                  <text class="svg-small" x="705" y="125">returns Pending</text>
+                  <text class="svg-small" x="888" y="116" text-anchor="end">done</text>
+
+                  <g class="runtime-flowing-future">
+                    <rect x="500" y="96" width="52" height="32" rx="3" fill="var(--blue)" />
+                    <text x="526" y="116" font-size="10" text-anchor="middle" fill="#fff">future a</text>
+                  </g>
+                  <g class="runtime-flowing-future runtime-flowing-future--2">
+                    <rect x="500" y="96" width="52" height="32" rx="3" fill="var(--blue)" />
+                    <text x="526" y="116" font-size="10" text-anchor="middle" fill="#fff">future b</text>
+                  </g>
+                  <g class="runtime-flowing-future runtime-flowing-future--3">
+                    <rect x="500" y="96" width="52" height="32" rx="3" fill="var(--blue)" />
+                    <text x="526" y="116" font-size="10" text-anchor="middle" fill="#fff">future c</text>
+                  </g>
+
+                  <path class="wire" d="M705 138 L705 205" />
+                  <circle class="runtime-handoff" cx="705" cy="145" r="6" />
+
+                  <text class="svg-small" x="535" y="199">blocking pool</text>
+                  <rect class="runtime-lane" x="490" y="210" width="398" height="54" rx="3" />
+                  <rect class="runtime-pool-fill" x="500" y="220" width="378" height="34" rx="2" />
+                  <text class="svg-node-label" x="689" y="242">cuDF kernels + synchronous wait</text>
+                  <circle class="runtime-wake" cx="850" cy="222" r="6" />
+                  <path class="wire" d="M850 210 L850 138" />
+
+                  <text x="490" y="300" font-size="12" font-weight="700" fill="var(--green)">other futures continue to run</text>
+                  <text class="svg-small" x="689" y="321">the JoinHandle wakes the GPU future when work finishes</text>
+                  <text class="svg-label" x="490" y="349">the executor stays responsive during the long call</text>
+                </svg>
+              </div>
+              <figcaption>
+                <code>spawn_blocking</code> isolates the synchronous cuDF call. Polling its
+                <code>JoinHandle</code> lets the DataFusion stream yield until the result is ready.
+              </figcaption>
+            </figure>
+          </section>
+
+          <section>
+            <!-- GENERATED_MIDDLE_START -->
+<p>In the Tokio Console, our poll duration improved to <code>1 ms</code> and the task was <code>busy</code> for far less time.</p>
+<pre><code class="language-text">         state   total   busy   sched   idle   polls   avg poll
+after     ⏸       17s     2s     15s     3ms    1993      ~1ms</code></pre>
+<h2>second: add tasks and CUDA streams</h2>
+<p>In CPU land, DataFusion parallelizes a plan in two directions. <strong>Vertical parallelism</strong> splits the plan into pipelines at operators such as <code>RepartitionExec</code>. When first polled, <code>RepartitionExec</code> spawns producer tasks to drive the pipeline below it, allowing the pipelines above and below the boundary to run concurrently. <strong>Horizontal parallelism</strong> runs multiple partitions of each pipeline, with each partition processing a different slice of the input.</p>
+<p>For example, this plan:</p>
+<pre><code class="language-text">SortExec
+  AggregateExec
+    RepartitionExec
+      ProjectionExec
+        FilterExec
+          DataSourceExec</code></pre>
+<p>can run as four concurrent tasks: two pipelines/segments, <code>s0</code> and <code>s1</code>, each with two partitions, <code>p0</code> and <code>p1</code>.</p>
+<pre><code class="language-text">s0,p0: SortExec &lt;- AggregateExec &lt;- RepartitionExec
+s0,p1: SortExec &lt;- AggregateExec &lt;- RepartitionExec
+
+s1,p0: ProjectionExec &lt;- FilterExec &lt;- DataSourceExec
+s1,p1: ProjectionExec &lt;- FilterExec &lt;- DataSourceExec</code></pre>
+<p><a href="https://github.com/gabotechs/libcudf-rs/pull/92" target="_blank" rel="noopener noreferrer">PR #92</a> applies a similar idea to GPU aggregates. It adds an optimizer rule that recognizes an aggregate over a Parquet scan with pipelineable operators in between (note that aggregates are pipeline breakers because they must consume their entire input before emitting a batch). The rule splits these pipelines into parallel partitions and assigns a non-blocking CUDA stream to each.</p>
+<h3>before</h3>
+<pre><code class="language-text">Aggregate · single       [1]
+  Projection             [1]
+    Filter               [1]
+      Coalesce       [8 → 1] // everything above this runs in one stream
+        Parquet scan     [8]</code></pre>
+<h3>after</h3>
+<pre><code class="language-text">Aggregate · final        [1]
+  Coalesce           [8 → 1] // everything below is parallelized on 8 streams
+    Aggregate · partial  [8] // per-partition aggregation to reduce the data size
+      Projection         [8]
+        Filter           [8]
+          Parquet scan   [8]</code></pre>
+<p>The GPU-backed record batches reference the stream they are on, so filters, projections, and partial aggregates enqueue kernels on the same stream, avoiding any cross-stream dependencies. Only the final aggregate synchronizes all the streams and merges their partial results. The final aggregate would have had to wait for its entire input anyway because it's a natural pipeline breaker.</p>
+<!-- GENERATED_MIDDLE_END -->
+
+            <figure class="wide-figure">
+              <div class="diagram" style="--diagram-duration: 8s">
+                <span class="diagram__progress" aria-hidden="true"></span>
+                <button
+                  class="animation-toggle diagram__toggle"
+                  type="button"
+                  data-animation-toggle
+                  aria-label="pause the multi-stream animation"
+                  aria-pressed="false"
+                >
+                  <span class="motion-icon motion-icon--pause" aria-hidden="true"></span>
+                  <span class="motion-icon motion-icon--play" aria-hidden="true"></span>
+                </button>
+                <svg viewBox="0 0 920 510" role="img" aria-labelledby="parallel-title parallel-desc">
+                  <title id="parallel-title">The rewritten multi-stream aggregate pipeline</title>
+                  <desc id="parallel-desc">
+                    Four independently scheduled batches move along separate CUDA stream lanes beneath
+                    their operators. The activity bar names the kernel currently running on each stream.
+                  </desc>
+                  <text class="svg-label" x="30" y="34">after · one independent CUDA stream per partition (4 of 8 shown)</text>
+
+                  <text class="svg-label" x="31" y="83">s0</text>
+                  <text class="svg-label" x="31" y="169">s1</text>
+                  <text class="svg-label" x="31" y="255">s2</text>
+                  <text class="svg-label" x="31" y="341">s3</text>
+
+                  <line class="wire" x1="66" y1="78" x2="565" y2="78" />
+                  <line class="wire" x1="66" y1="164" x2="565" y2="164" />
+                  <line class="wire" x1="66" y1="250" x2="565" y2="250" />
+                  <line class="wire" x1="66" y1="336" x2="565" y2="336" />
+
+                  <line class="wire wire--active" x1="66" y1="116" x2="565" y2="116" />
+                  <line class="wire wire--active" x1="66" y1="202" x2="565" y2="202" />
+                  <line class="wire wire--active" x1="66" y1="288" x2="565" y2="288" />
+                  <line class="wire wire--active" x1="66" y1="374" x2="565" y2="374" />
+
+                  <g>
+                    <rect class="node" x="94" y="56" width="112" height="44" rx="3" />
+                    <rect class="node" x="94" y="142" width="112" height="44" rx="3" />
+                    <rect class="node" x="94" y="228" width="112" height="44" rx="3" />
+                    <rect class="node" x="94" y="314" width="112" height="44" rx="3" />
+                    <text class="svg-node-label" x="150" y="83">scan</text>
+                    <text class="svg-node-label" x="150" y="169">scan</text>
+                    <text class="svg-node-label" x="150" y="255">scan</text>
+                    <text class="svg-node-label" x="150" y="341">scan</text>
+                  </g>
+
+                  <g>
+                    <rect class="node" x="269" y="56" width="112" height="44" rx="3" />
+                    <rect class="node" x="269" y="142" width="112" height="44" rx="3" />
+                    <rect class="node" x="269" y="228" width="112" height="44" rx="3" />
+                    <rect class="node" x="269" y="314" width="112" height="44" rx="3" />
+                    <text class="svg-node-label" x="325" y="83">filter</text>
+                    <text class="svg-node-label" x="325" y="169">filter</text>
+                    <text class="svg-node-label" x="325" y="255">filter</text>
+                    <text class="svg-node-label" x="325" y="341">filter</text>
+                  </g>
+
+                  <g>
+                    <rect class="node node--aggregate" x="444" y="56" width="121" height="44" rx="3" />
+                    <rect class="node node--aggregate" x="444" y="142" width="121" height="44" rx="3" />
+                    <rect class="node node--aggregate" x="444" y="228" width="121" height="44" rx="3" />
+                    <rect class="node node--aggregate" x="444" y="314" width="121" height="44" rx="3" />
+                    <text class="svg-node-label partial-aggregate-label" x="504" y="82">partial agg</text>
+                    <text class="svg-node-label partial-aggregate-label" x="504" y="168">partial agg</text>
+                    <text class="svg-node-label partial-aggregate-label" x="504" y="254">partial agg</text>
+                    <text class="svg-node-label partial-aggregate-label" x="504" y="340">partial agg</text>
+                  </g>
+
+                  <path class="wire" d="M565 78 C640 78 628 177 693 194" />
+                  <path class="wire" d="M565 164 C626 164 633 197 693 209" />
+                  <path class="wire" d="M565 250 C626 250 633 227 693 224" />
+                  <path class="wire" d="M565 336 C640 336 628 247 693 239" />
+
+                  <rect class="final-pulse" x="693" y="170" width="180" height="100" rx="3" />
+                  <text class="svg-node-label" x="783" y="213">final agg</text>
+                  <text class="svg-small" x="783" y="234">synchronize + merge</text>
+
+                  <g class="packet multi-packet multi-packet--1">
+                    <g class="multi-active-batch">
+                      <rect x="66" y="107" width="27" height="18" rx="2" />
+                      <text x="79" y="120">b7</text>
+                    </g>
+                  </g>
+                  <g class="packet multi-packet multi-packet--2">
+                    <g class="multi-active-batch multi-active-batch--2">
+                      <rect x="66" y="193" width="27" height="18" rx="2" />
+                      <text x="79" y="206">b2</text>
+                    </g>
+                  </g>
+                  <g class="packet multi-packet multi-packet--3">
+                    <g class="multi-active-batch multi-active-batch--3">
+                      <rect x="66" y="279" width="27" height="18" rx="2" />
+                      <text x="79" y="292">b5</text>
+                    </g>
+                  </g>
+                  <g class="packet multi-packet multi-packet--4">
+                    <g class="multi-active-batch multi-active-batch--4">
+                      <rect x="66" y="365" width="27" height="18" rx="2" />
+                      <text x="79" y="378">b1</text>
+                    </g>
+                  </g>
+
+                  <text class="svg-label" x="30" y="440">GPU activity</text>
+                  <rect x="142" y="420" width="720" height="30" rx="2" fill="var(--panel-strong)" />
+                  <rect class="multi-util-fill multi-util-fill--timeline" x="142" y="420" width="720" height="30" rx="2" />
+
+                  <g class="multi-kernel-frame multi-kernel-frame--1">
+                    <text x="232" y="439">s0 · b7 · scan</text>
+                    <text x="412" y="439">s1 · b2 · partial agg</text>
+                    <text x="592" y="439">s2 · b5 · scan</text>
+                    <text x="772" y="439">s3 · b1 · filter</text>
+                  </g>
+                  <g class="multi-kernel-frame multi-kernel-frame--2">
+                    <text x="232" y="439">s0 · b7 · filter</text>
+                    <text x="412" y="439">s2 · b5 · scan</text>
+                    <text x="592" y="439">s3 · b1 · partial agg</text>
+                  </g>
+                  <g class="multi-kernel-frame multi-kernel-frame--3">
+                    <text x="232" y="439">s1 · b2 · scan</text>
+                    <text x="412" y="439">s2 · b5 · partial agg</text>
+                    <text x="592" y="439">s3 · b1 · filter</text>
+                  </g>
+                  <g class="multi-kernel-frame multi-kernel-frame--4">
+                    <text x="232" y="439">s0 · b7 · partial agg</text>
+                    <text x="412" y="439">s1 · b2 · filter</text>
+                    <text x="592" y="439">s2 · b5 · scan</text>
+                    <text x="772" y="439">s3 · b1 · scan</text>
+                  </g>
+                  <line x1="322" y1="424" x2="322" y2="446" stroke="rgba(17,17,17,.25)" />
+                  <line x1="502" y1="424" x2="502" y2="446" stroke="rgba(17,17,17,.25)" />
+                  <line x1="682" y1="424" x2="682" y2="446" stroke="rgba(17,17,17,.25)" />
+
+                  <g class="multi-final-kernel">
+                    <rect class="multi-final-kernel__track" x="142" y="420" width="720" height="30" rx="2" />
+                    <rect class="multi-final-kernel__block" x="142" y="420" width="520" height="30" rx="2" />
+                    <text x="402" y="439">final aggregate · synchronize + merge</text>
+                  </g>
+
+                  <text class="svg-label" x="142" y="480">independent streams keep several kernels in flight</text>
+                </svg>
+              </div>
+            </figure>
+          </section>
+
+          <!-- GENERATED_OUTRO_START -->
+<section id="results"><h2>results</h2>
+<p>TPC-H SF100 on a <code>g7.4xlarge</code> with an NVIDIA RTX PRO 4500 Blackwell Server Edition (32 GB, 165 W). These are mean end-to-end query times from the PR. They compare the original plan with the complete multi-partition, multi-stream rewrite.</p>
+<ul class="metrics-list"><li><strong>2.53×</strong> — Q15 speedup at 8 streams</li><li><strong>2.07×</strong> — Q1 speedup at 8 streams</li><li><strong>1.77×</strong> — Q20 speedup at 2 streams</li></ul>
+<div class="table-wrap"><table><thead><tr><th>query</th><th>1 stream</th><th>2 streams</th><th>4 streams</th><th>8 streams</th><th>best speedup</th></tr></thead><tbody><tr><td>Q1</td><td>4908 ms</td><td>3526 ms</td><td>2508 ms</td><td><strong>2374 ms</strong></td><td><strong>2.07×</strong></td></tr><tr><td>Q15</td><td>3182 ms</td><td>1787 ms</td><td>1295 ms</td><td><strong>1256 ms</strong></td><td><strong>2.53×</strong></td></tr><tr><td>Q17</td><td>7308 ms</td><td><strong>6300 ms</strong></td><td>6557 ms</td><td>6898 ms</td><td><strong>1.16×</strong></td></tr><tr><td>Q18</td><td>32915 ms</td><td>27895 ms</td><td>24891 ms</td><td><strong>23531 ms</strong></td><td><strong>1.40×</strong></td></tr><tr><td>Q20</td><td>6002 ms</td><td><strong>3383 ms</strong></td><td>3402 ms</td><td>3606 ms</td><td><strong>1.77×</strong></td></tr></tbody></table></div>
+<h3>the profile tells the same story</h3>
+<p>An <a href="https://developer.nvidia.com/nsight-systems" target="_blank" rel="noopener noreferrer">NVIDIA Nsight Systems</a> profile of Q1 tells the same story. Extra streams turn empty GPU capacity into useful overlap: the runtime drops by half while all three utilization measures rise sharply.</p>
+<ul class="metrics-list"><li><strong>8% → 47%</strong> — SM warp occupancy</li><li><strong>20% → 85%</strong> — SM activity</li><li><strong>37% → 95%</strong> — GPU activity</li></ul>
+<h3>before · one stream</h3>
+<figure class="wide-figure profile-comparison"><a class="profile-shot" href="../../assets/blog/cuda-streams/profile-before.png" target="_blank" rel="noopener noreferrer"><img src="../../assets/blog/cuda-streams/profile-before.png" width="3226" height="900" alt="Nsight Systems before profile showing low GPU activity, SM activity, and warp occupancy" loading="lazy" /></a></figure>
+<h3>after · eight streams</h3>
+<figure class="wide-figure profile-comparison"><a class="profile-shot" href="../../assets/blog/cuda-streams/profile-after.png" target="_blank" rel="noopener noreferrer"><img src="../../assets/blog/cuda-streams/profile-after.png" width="3224" height="864" alt="Nsight Systems after profile showing high sustained GPU activity, SM activity, and warp occupancy" loading="lazy" /></a></figure>
+</section>
+<!-- GENERATED_OUTRO_END -->
+        </article>
+      </main>
+
+      <footer><a href="../../">← back home</a></footer>
+    </div>
+
+    <script>
+      const themeToggle = document.getElementById('theme-toggle')
+
+      const syncThemeToggle = () => {
+        const isDark = document.documentElement.dataset.theme === 'dark'
+        themeToggle.setAttribute('aria-pressed', String(isDark))
+        themeToggle.setAttribute('aria-label', `switch to ${isDark ? 'light' : 'dark'} mode`)
+        themeToggle.title = `switch to ${isDark ? 'light' : 'dark'} mode`
+      }
+
+      themeToggle.addEventListener('click', () => {
+        const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'
+        document.documentElement.dataset.theme = nextTheme
+        try {
+          localStorage.setItem('theme', nextTheme)
+        } catch {}
+        syncThemeToggle()
+      })
+
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+      const setDiagramPaused = (diagram, animationToggle, isPaused) => {
+        diagram.classList.toggle('is-paused', isPaused)
+        animationToggle.setAttribute('aria-pressed', String(isPaused))
+        animationToggle.setAttribute(
+          'aria-label',
+          `${isPaused ? 'play' : 'pause'} this execution animation`,
+        )
+        animationToggle.title = `${isPaused ? 'play' : 'pause'} animation`
+
+        // Explicitly resume descendant animations as well as removing the CSS
+        // pause state. This avoids animations remaining suspended in iOS Safari.
+        if (!isPaused) {
+          ;[diagram, ...diagram.querySelectorAll('*')].forEach((element) => {
+            if (typeof element.getAnimations === 'function') {
+              element.getAnimations().forEach((animation) => animation.play())
+            }
+          })
+        }
+      }
+
+      document.querySelectorAll('[data-animation-toggle]').forEach((animationToggle) => {
+        const diagram = animationToggle.closest('.diagram')
+        setDiagramPaused(diagram, animationToggle, prefersReducedMotion.matches)
+
+        animationToggle.addEventListener('click', () => {
+          setDiagramPaused(diagram, animationToggle, !diagram.classList.contains('is-paused'))
+        })
+      })
+
+      syncThemeToggle()
+    </script>
+  </body>
+</html>

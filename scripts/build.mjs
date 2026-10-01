@@ -6,7 +6,8 @@ const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const publicDirectory = join(projectRoot, 'public')
 const buildDirectory = join(projectRoot, 'build')
 const blogSource = join(projectRoot, 'content/blog/cuda-streams.md')
-const blogPage = join(publicDirectory, 'blog/cuda-streams/index.html')
+const blogSlug = 'gpu-utilization-tokio-cuda-cudf'
+const blogPage = join(publicDirectory, `blog/${blogSlug}/index.html`)
 
 const escapeHtml = (value) =>
   value
@@ -308,10 +309,12 @@ const renderBlog = async () => {
   const homePage = join(publicDirectory, 'index.html')
   const home = await readFile(homePage, 'utf8')
   const homeTitle = metadata.subtitle || metadata.title
-  const updatedHome = home.replace(
-    /(<a href="blog\/cuda-streams\/">)[\s\S]*?(<\/a>)/,
-    `$1${escapeHtml(homeTitle.toLowerCase())}$2`,
-  )
+  const updatedHome = home
+    .replace('href="blog/cuda-streams/"', `href="blog/${blogSlug}/"`)
+    .replace(
+      new RegExp(`(<a href="blog/${blogSlug}/">)[\\s\\S]*?(<\\/a>)`),
+      `$1${escapeHtml(homeTitle.toLowerCase())}$2`,
+    )
   await writeFile(homePage, updatedHome)
 }
 
