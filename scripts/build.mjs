@@ -307,9 +307,10 @@ const renderBlog = async () => {
 
   const homePage = join(publicDirectory, 'index.html')
   const home = await readFile(homePage, 'utf8')
+  const homeTitle = metadata.subtitle || metadata.title
   const updatedHome = home.replace(
     /(<a href="blog\/cuda-streams\/">)[\s\S]*?(<\/a>)/,
-    `$1${escapeHtml(metadata.title.toLowerCase())}$2`,
+    `$1${escapeHtml(homeTitle.toLowerCase())}$2`,
   )
   await writeFile(homePage, updatedHome)
 }

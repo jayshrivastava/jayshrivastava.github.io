@@ -1,5 +1,6 @@
 ---
-title: improving GPU utilization with Tokio and cuDF
+title: a tale of two runtimes
+subtitle: improving GPU utilization with Tokio and cuDF
 date: 2026-09-18
 description: How an async Rust and CUDA stream integration improved GPU utilization for aggregate-heavy OLAP queries in libcudf-rs.
 ---
