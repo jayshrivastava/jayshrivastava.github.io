@@ -1345,8 +1345,8 @@
         }
 
         .animation-toggle {
-          width: 40px;
-          height: 40px;
+          width: 34px;
+          height: 34px;
         }
 
         .diagram__toggle {
@@ -1911,15 +1911,15 @@ s1,p1: ProjectionExec &lt;- FilterExec &lt;- DataSourceExec</code></pre>
         )
         animationToggle.title = `${isPaused ? 'play' : 'pause'} animation`
 
-        // Explicitly resume descendant animations as well as removing the CSS
-        // pause state. This avoids animations remaining suspended in iOS Safari.
-        if (!isPaused) {
-          ;[diagram, ...diagram.querySelectorAll('*')].forEach((element) => {
-            if (typeof element.getAnimations === 'function') {
-              element.getAnimations().forEach((animation) => animation.play())
-            }
-          })
-        }
+        // Mirror the CSS state through the Web Animations API for iOS Safari.
+        ;[diagram, ...diagram.querySelectorAll('*')].forEach((element) => {
+          if (typeof element.getAnimations === 'function') {
+            element.getAnimations().forEach((animation) => {
+              if (isPaused) animation.pause()
+              else animation.play()
+            })
+          }
+        })
       }
 
       document.querySelectorAll('[data-animation-toggle]').forEach((animationToggle) => {
