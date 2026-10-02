@@ -1438,16 +1438,16 @@
 <!-- GENERATED_HEADER_END -->
 
           <!-- GENERATED_INTRO_START -->
-<p>There has been growing interest in GPU query engines over the last two years, notably with the <a href="https://arxiv.org/abs/2508.05029" target="_blank" rel="noopener noreferrer">Theseus paper</a>, NVIDIA's <a href="https://docs.nvidia.com/heavyai/overview" target="_blank" rel="noopener noreferrer">acquisition of HEAVY.AI</a>, and NVIDIA's blog post on <a href="https://developer.nvidia.com/blog/designing-gpu-accelerated-query-engines-with-nvidia-gqe/" target="_blank" rel="noopener noreferrer">GQE</a>. Naturally, I imagine there's some interest in finding use cases for cheap, outdated GPUs that are too small for frontier AI.</p>
+<p>There has been growing interest in GPU query engines over the last two years, notably with the <a href="https://arxiv.org/abs/2508.05029" target="_blank" rel="noopener noreferrer">Theseus paper</a>, NVIDIA's <a href="https://docs.nvidia.com/heavyai/overview" target="_blank" rel="noopener noreferrer">acquisition of HEAVY.AI</a>, and NVIDIA's blog post on <a href="https://developer.nvidia.com/blog/designing-gpu-accelerated-query-engines-with-nvidia-gqe/" target="_blank" rel="noopener noreferrer">GQE</a>. That makes sense: analytical queries over massive datasets can benefit from GPU acceleration and make effective use of smaller GPUs not typically used for frontier models.</p>
 <p>Recently, I spent a week working on <a href="https://github.com/gabotechs/libcudf-rs" target="_blank" rel="noopener noreferrer">libcudf-rs</a>, an experimental OLAP engine built on <a href="https://datafusion.apache.org/" target="_blank" rel="noopener noreferrer">Apache DataFusion</a> and Rust bindings for <a href="https://github.com/rapidsai/cudf" target="_blank" rel="noopener noreferrer">cuDF</a> (huge shoutout to my colleague and original author <a href="https://github.com/gabotechs" target="_blank" rel="noopener noreferrer">@gabotechs</a> who recently gave a <a href="https://www.youtube.com/watch?v=P5v3y1sUMc8" target="_blank" rel="noopener noreferrer">talk</a> about it). A major goal of the project is to see whether a GPU instance can offer better performance per dollar than a CPU-only instance on OLAP workloads.</p>
 <p>My goal was to finalize our execution model, keeping in mind two goals:</p>
-<ol class="goals-list"><li>keep resources (i.e., the GPU) saturated when compute or memory capacity is available; and</li><li>schedule work efficiently across three runtimes, reconciling DataFusion's <a href="https://dl.acm.org/doi/10.1145/93605.98720" target="_blank" rel="noopener noreferrer">Volcano-based</a> execution model, the Tokio runtime, and the CUDA/cuDF runtime.</li></ol>
+<ol class="goals-list"><li>keep resources (i.e., the GPU) saturated when compute or memory capacity is available; and</li><li>schedule work efficiently across the Tokio and CUDA/cuDF runtimes while reconciling them with DataFusion's <a href="https://dl.acm.org/doi/10.1145/93605.98720" target="_blank" rel="noopener noreferrer">Volcano-based</a> execution model.</li></ol>
 <!-- GENERATED_INTRO_END -->
 
           <section id="the-current-model">
             <!-- GENERATED_CURRENT_MODEL_START -->
 <h2>problem: the GPU wasn't saturated</h2>
-<p>The current execution model used one CUDA stream and one DataFusion partition (analogous to a Tokio task), meaning only one host thread was feeding the GPU. The GPU could execute only one kernel or host-to-device copy at a time (with the sole exception of the cuDF <code>read_parquet</code> kernel, which uses streams internally).</p>
+<p>With one CUDA stream and one DataFusion partition (analogous to a Tokio task), the current execution model had only one host thread feeding the GPU. As a result, the GPU could execute only one kernel or host-to-device copy at a time (with the sole exception of the cuDF <code>read_parquet</code> kernel, which uses streams internally).</p>
 <!-- GENERATED_CURRENT_MODEL_END -->
 
             <figure class="wide-figure">
@@ -1557,7 +1557,7 @@
 <p>I inspected a query using the <a href="https://github.com/tokio-rs/console" target="_blank" rel="noopener noreferrer">Tokio Console</a> and saw the issue firsthand. In TPC-H Q1, the root task executing the query was marked busy for 9 of 10 seconds, with an average poll around 27 ms.</p>
 <pre><code class="language-text">         state   total   busy   sched   idle   polls   avg poll
 before    ▶       10s     9s    628ms   36µs     335     ~27ms</code></pre>
-<p>This meant that for 9 seconds, the executor could not schedule another future on that worker thread until the call returned.</p>
+<p>In aggregate, the task spent 9 seconds being polled. During each poll, the executor could not schedule another future on that worker thread until <code>poll_next</code> returned.</p>
 <p>In <a href="https://github.com/gabotechs/libcudf-rs/pull/89" target="_blank" rel="noopener noreferrer">PR #89</a>, I implemented a simple fix. Because cuDF calls can block their calling thread, I moved the GPU aggregate kernel work to Tokio's blocking pool. <code>spawn_blocking</code> returns a future, allowing <code>poll_next</code> to return <code>Pending</code> while the work continues on another thread.</p>
 <pre><code class="language-rust"><span class="syntax-keyword">match</span> &amp;<span class="syntax-keyword">mut</span> <span class="syntax-keyword">self</span>.state {
     <span class="syntax-type">State</span>::ReadingInput =&gt; {

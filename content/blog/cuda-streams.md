@@ -10,8 +10,8 @@ There has been growing interest in GPU query engines over the last two years, no
 [Theseus paper](https://arxiv.org/abs/2508.05029),
 NVIDIA's [acquisition of HEAVY.AI](https://docs.nvidia.com/heavyai/overview),
 and NVIDIA's blog post on [GQE](https://developer.nvidia.com/blog/designing-gpu-accelerated-query-engines-with-nvidia-gqe/).
-Naturally, I imagine there's some interest in finding use cases for cheap, outdated GPUs that are too small for
-frontier AI.
+That makes sense: analytical queries over massive datasets can benefit from GPU acceleration and make effective use of smaller GPUs
+not typically used for frontier models.
 
 Recently, I spent a week working on
 [libcudf-rs](https://github.com/gabotechs/libcudf-rs), an experimental OLAP
@@ -26,13 +26,12 @@ a CPU-only instance on OLAP workloads.
 My goal was to finalize our execution model, keeping in mind two goals:
 
 (a) keep resources (i.e., the GPU) saturated when compute or memory capacity is available; and
-(b) schedule work efficiently across three runtimes, reconciling DataFusion's [Volcano-based](https://dl.acm.org/doi/10.1145/93605.98720) execution model, the Tokio runtime, and the CUDA/cuDF runtime.
+(b) schedule work efficiently across the Tokio and CUDA/cuDF runtimes while reconciling them with DataFusion's [Volcano-based](https://dl.acm.org/doi/10.1145/93605.98720) execution model.
 
 ## problem: the GPU wasn't saturated
 
-The current execution model used one CUDA stream and one DataFusion partition (analogous to a Tokio task), meaning only
-one host thread was feeding the GPU. The GPU could execute only one kernel or
-host-to-device copy at a time
+With one CUDA stream and one DataFusion partition (analogous to a Tokio task), the current execution model
+had only one host thread feeding the GPU. As a result, the GPU could execute only one kernel or host-to-device copy at a time
 (with the sole exception of the cuDF `read_parquet` kernel, which uses streams internally).
 
 {{single_stream_animation}}
@@ -88,8 +87,8 @@ before    ▶       10s     9s    628ms   36µs     335     ~27ms
 ```
 
 
-This meant that for 9 seconds, the executor could not schedule another future on that
-worker thread until the call returned.
+In aggregate, the task spent 9 seconds being polled. During each poll, the executor could not
+schedule another future on that worker thread until `poll_next` returned.
 
 In [PR #89](https://github.com/gabotechs/libcudf-rs/pull/89), I implemented a
 simple fix. Because cuDF calls can block their calling thread, I moved the
